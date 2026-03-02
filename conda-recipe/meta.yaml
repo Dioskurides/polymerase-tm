@@ -1,0 +1,42 @@
+{% set name = "polymerase-tm" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.org/packages/source/p/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  # sha256: <fill after PyPI upload>
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  entry_points:
+    - polymerase-tm = polymerase_tm.cli:main
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - hatchling
+  run:
+    - python >=3.9
+
+test:
+  imports:
+    - polymerase_tm
+  commands:
+    - polymerase-tm --help
+    - polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA
+
+about:
+  home: https://github.com/Dioskurides/polymerase-tm
+  summary: Exact reproduction of the NEB Tm Calculator for PCR primer analysis
+  license: MIT
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - Dioskurides
