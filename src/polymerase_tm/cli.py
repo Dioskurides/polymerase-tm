@@ -4,49 +4,110 @@ from __future__ import annotations
 
 import argparse
 import sys
+import textwrap
+
+EXAMPLES = """\
+examples:
+  Single primer Tm (default: Q5 polymerase):
+    polymerase-tm ATCGATCGATCG
+
+  Primer pair Ta:
+    polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
+
+  Different polymerase:
+    polymerase-tm -p taq ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
+
+  Ta with 3%% DMSO correction:
+    polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
+
+  DMSO analysis with GenBank template:
+    polymerase-tm --dmso-check --template plasmid.gbk FWD_SEQ REV_SEQ
+
+  List all supported polymerases:
+    polymerase-tm --list
+
+algorithm:
+  Tm:  SantaLucia (1998) nearest-neighbor + Owczarzy (2004) salt correction
+  Ta:  Polymerase-specific rules (e.g. Q5: min(Tm1,Tm2)+1, cap 72 degC)
+  DMSO: -0.6 degC per 1%% (v/v)
+
+  Verified against the official NEB Tm Calculator with 0 degC deviation.
+  https://tmcalculator.neb.com/
+"""
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="polymerase-tm",
         description=(
-            "Polymerase Tm Calculator -- compute primer Tm and Ta for NEB polymerases."
+            "Compute primer melting temperature (Tm) and annealing temperature (Ta) "
+            "for 22 NEB polymerases. Reproduces the NEB Tm Calculator algorithm "
+            "(SantaLucia 1998 + Owczarzy 2004) with polymerase-specific buffer "
+            "conditions and Ta rules."
         ),
+        epilog=EXAMPLES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "primers",
         nargs="*",
         metavar="SEQUENCE",
-        help="One or two primer sequences (binding region only, no overhangs).",
+        help=(
+            "One or two DNA primer sequences. Use the binding region only "
+            "(no Gibson/overlap overhangs). With one sequence, only Tm is "
+            "calculated. With two, both Tm values and the recommended Ta "
+            "are shown."
+        ),
     )
     parser.add_argument(
         "-p", "--polymerase",
         default="q5",
-        help="Polymerase key (default: q5). Use --list to see all options.",
+        metavar="KEY",
+        help=(
+            "Polymerase product key (default: q5). Each polymerase uses "
+            "its own buffer salt concentration and Ta calculation rule. "
+            "Use --list to see all 22 supported products."
+        ),
     )
     parser.add_argument(
         "--dmso",
         type=float,
         default=0,
         metavar="PCT",
-        help="DMSO percentage (v/v) for Ta correction (-0.6 degC per 1 %%).",
+        help=(
+            "DMSO percentage (v/v) for Ta correction. Applies -0.6 degC "
+            "per 1%% DMSO to the final Ta. Common values: 2-5%%."
+        ),
     )
     parser.add_argument(
         "--dmso-check",
         action="store_true",
-        help="Run DMSO recommendation analysis.",
+        help=(
+            "Run a comprehensive DMSO recommendation analysis. Checks "
+            "primer hairpins, template GC content, and GC-rich hotspots. "
+            "Optionally provide --template for amplicon-level analysis."
+        ),
     )
     parser.add_argument(
         "--template",
         default=None,
         metavar="FILE",
-        help="GenBank template file for DMSO amplicon analysis (requires biopython).",
+        help=(
+            "GenBank (.gbk/.gb) template file for DMSO amplicon analysis. "
+            "The amplicon is extracted between the primer binding sites and "
+            "analysed for GC hotspots and secondary structures."
+        ),
     )
     parser.add_argument(
         "--list",
         action="store_true",
         dest="list_poly",
-        help="List all available polymerases and exit.",
+        help="List all 22 supported NEB polymerases with their buffer and Ta parameters.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__import__('polymerase_tm').__version__}",
     )
 
     args = parser.parse_args(argv)
@@ -60,18 +121,20 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     if args.list_poly:
-        print(f"\n  {'Key':<25s} {'Salt':>6s} {'Conc':>6s}  Description")
-        print("  " + "-" * 80)
+        print(f"\n  {'Key':<25s} {'Salt':>6s} {'Conc':>6s}  {'Ta rule':<22s}  Description")
+        print("  " + "-" * 95)
         for p in list_polymerases():
+            ta_rule = p.get("ta_rule", "")
             print(
                 f"  {p['key']:<25s} {p['buffer_salt_mM']:>4d} mM"
-                f" {p['primer_conc_nM']:>4d} nM  {p['description']}"
+                f" {p['primer_conc_nM']:>4d} nM  {ta_rule:<22s}  {p['description']}"
             )
         print()
         return
 
     if not args.primers:
-        parser.error("At least one primer sequence is required (or use --list).")
+        parser.print_help()
+        sys.exit(0)
 
     seq1 = args.primers[0].strip().upper()
     poly = args.polymerase
@@ -79,10 +142,10 @@ def main(argv: list[str] | None = None) -> None:
     if len(args.primers) == 1:
         # Single primer -- just Tm
         t = tm(seq1, polymerase=poly)
+        gc = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
         print(f"\n  Primer:     {seq1}")
         print(f"  Length:     {len(seq1)} nt")
-        gc = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
-        print(f"  GC:         {gc:.0f} %")
+        print(f"  GC:         {gc:.1f} %")
         print(f"  Polymerase: {poly}")
         print(f"  Tm:         {t} degC\n")
 
@@ -90,10 +153,13 @@ def main(argv: list[str] | None = None) -> None:
         seq2 = args.primers[1].strip().upper()
         result_ta, t1, t2 = ta(seq1, seq2, polymerase=poly, dmso_pct=args.dmso)
 
+        gc1 = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
+        gc2 = (seq2.count("G") + seq2.count("C")) / len(seq2) * 100
+
         print(f"\n  Primer 1:   {seq1}")
-        print(f"              {len(seq1)} nt, Tm = {t1} degC")
+        print(f"              {len(seq1)} nt, GC {gc1:.1f} %, Tm = {t1} degC")
         print(f"  Primer 2:   {seq2}")
-        print(f"              {len(seq2)} nt, Tm = {t2} degC")
+        print(f"              {len(seq2)} nt, GC {gc2:.1f} %, Tm = {t2} degC")
         print(f"  Polymerase: {poly}")
         if args.dmso > 0:
             print(f"  DMSO:       {args.dmso} %")
