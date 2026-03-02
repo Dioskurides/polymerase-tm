@@ -807,6 +807,84 @@ def optimal_binding_length(
     }
 
 
+def _additive_recommendation(
+    fwd: str,
+    rev: str,
+    polymerase: str = "q5",
+    amplicon_gc: Optional[float] = None,
+) -> dict:
+    """Analyse whether DMSO or GC enhancer should be added.
+
+    Logic
+    -----
+    - Q5 family: recommend **Q5 High GC Enhancer** (1x) for GC-rich targets.
+      DMSO is NOT recommended with Q5 (NEB advises against it).
+    - Other polymerases: recommend **DMSO** (2-5 % v/v).
+
+    Triggers (any one is sufficient):
+    - Primer GC > 70 %
+    - Average primer GC > 65 %
+    - Strong self-hairpin in primer (stem >= 5 bp, Tm >= 40 degC)
+    - Amplicon GC > 65 % (if provided)
+    """
+    fwd = fwd.strip().upper()
+    rev = rev.strip().upper()
+    gc_f = gc_content(fwd) * 100
+    gc_r = gc_content(rev) * 100
+    avg_gc = (gc_f + gc_r) / 2
+
+    is_q5 = "q5" in polymerase.lower()
+    reasons = []
+
+    # Check primer GC
+    if gc_f > 70:
+        reasons.append(f"Forward primer GC is {gc_f:.0f}% (> 70%)")
+    if gc_r > 70:
+        reasons.append(f"Reverse primer GC is {gc_r:.0f}% (> 70%)")
+    if avg_gc > 65 and gc_f <= 70 and gc_r <= 70:
+        reasons.append(f"Average primer GC is {avg_gc:.0f}% (> 65%)")
+
+    # Check primer hairpins
+    for label, seq in [("fwd", fwd), ("rev", rev)]:
+        hps = primer_hairpin(seq)
+        strong = [h for h in hps if h["stem_length"] >= 5 and h["tm_estimate"] >= 40]
+        if strong:
+            reasons.append(
+                f"Primer {label} has {len(strong)} strong hairpin(s) "
+                f"(stem >= 5 bp, Tm >= 40 degC)"
+            )
+
+    # Check amplicon GC if provided
+    if amplicon_gc is not None and amplicon_gc > 65:
+        reasons.append(f"Amplicon GC is {amplicon_gc:.0f}% (> 65%)")
+
+    if not reasons:
+        return {
+            "recommended": False,
+            "additive": None,
+            "concentration": None,
+            "reasons": ["No GC-related issues detected"],
+        }
+
+    if is_q5:
+        return {
+            "recommended": True,
+            "additive": "Q5 High GC Enhancer",
+            "concentration": "1x",
+            "reasons": reasons,
+            "note": "NEB does not recommend DMSO with Q5. Use GC Enhancer instead.",
+        }
+    else:
+        # Recommend DMSO percentage based on severity
+        pct = 3 if len(reasons) <= 2 else 5
+        return {
+            "recommended": True,
+            "additive": "DMSO",
+            "concentration": f"{pct}%",
+            "reasons": reasons,
+        }
+
+
 def check_pair(
     fwd: str,
     rev: str,
@@ -814,6 +892,8 @@ def check_pair(
     dmso_pct: float = 0,
 ) -> dict:
     """Comprehensive primer pair compatibility check.
+
+    Automatically includes DMSO / GC Enhancer recommendation.
 
     Parameters
     ----------
@@ -828,13 +908,14 @@ def check_pair(
     -------
     dict
         Keys: ``fwd_tm``, ``rev_tm``, ``ta``, ``tm_diff``,
-        ``gc_fwd``, ``gc_rev``, ``compatible`` (bool), ``warnings`` (list).
+        ``gc_fwd``, ``gc_rev``, ``compatible`` (bool), ``warnings`` (list),
+        ``additive`` (dict with DMSO/GC enhancer recommendation).
 
     Examples
     --------
     >>> result = check_pair("ATGTCCCTGCTCTTCTCTCGATGCAA", "GTGCCTCCGAGCCAGCACC")
-    >>> if not result["compatible"]:
-    ...     for w in result["warnings"]: print(w)
+    >>> if result["additive"]["recommended"]:
+    ...     print(f"Use {result['additive']['additive']} ({result['additive']['concentration']})")
     """
     fwd = fwd.strip().upper()
     rev = rev.strip().upper()
@@ -864,6 +945,8 @@ def check_pair(
     if gc_r < 30 or gc_r > 70:
         warnings.append(f"Reverse primer GC content ({gc_r:.0f}%) is outside ideal range (30-70%).")
 
+    additive = _additive_recommendation(fwd, rev, polymerase=polymerase)
+
     return {
         "fwd_seq": fwd,
         "rev_seq": rev,
@@ -879,6 +962,7 @@ def check_pair(
         "dmso_pct": dmso_pct,
         "compatible": len(warnings) == 0 or all("minor" in w.lower() for w in warnings),
         "warnings": warnings,
+        "additive": additive,
     }
 
 
@@ -1022,6 +1106,8 @@ def pcr_protocol(
         + params["final_ext"]
     )
 
+    additive = _additive_recommendation(fwd, rev, polymerase=polymerase)
+
     return {
         "polymerase": polymerase,
         "polymerase_family": family,
@@ -1034,6 +1120,7 @@ def pcr_protocol(
         "num_cycles": num_cycles,
         "cycling": cycling,
         "total_time_min": round(total_seconds / 60, 1),
+        "additive": additive,
     }
 
 
@@ -1135,7 +1222,7 @@ def to_csv(
             writer.writerow(flat)
 
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     # Core

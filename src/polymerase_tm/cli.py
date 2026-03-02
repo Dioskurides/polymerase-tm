@@ -163,7 +163,20 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  Polymerase: {poly}")
         if args.dmso > 0:
             print(f"  DMSO:       {args.dmso} %")
-        print(f"  Ta:         {result_ta} degC\n")
+        print(f"  Ta:         {result_ta} degC")
+
+        # Auto additive recommendation
+        from polymerase_tm import _additive_recommendation
+        additive = _additive_recommendation(seq1, seq2, polymerase=poly)
+        if additive["recommended"]:
+            print(f"\n  [!] RECOMMENDATION: {additive['additive']} ({additive['concentration']})")
+            for reason in additive["reasons"]:
+                print(f"      - {reason}")
+            if "note" in additive:
+                print(f"      Note: {additive['note']}")
+        else:
+            print(f"\n  [OK] No additive required")
+        print()
 
         if args.dmso_check:
             report = dmso_recommendation(
