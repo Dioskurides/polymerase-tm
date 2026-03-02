@@ -6,18 +6,19 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 
 - **Exact NEB Tm Calculator reproduction** -- algorithm recreated from the NEB Tm Calculator front-end source; verified against the official tool with 0 degC deviation across all tested sequences.
 - **22 NEB polymerase products** with their specific buffer salt concentrations and Ta rules (Q5, Phusion, Taq, OneTaq, LongAmp, Vent, Deep Vent, and more).
-- **DMSO recommendation** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures.
+- **Automatic additive recommendation** -- suggests Q5 High GC Enhancer or DMSO based on primer GC, hairpins, and amplicon analysis.
+- **Batch processing** -- process hundreds of primer pairs from CSV files with full Tm/Ta/compatibility analysis.
+- **PCR protocol generator** -- generates complete cycling protocols with polymerase-specific temperatures and extension times.
+- **Smart primer design** -- find the optimal binding length for a target Tm.
+- **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures.
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
-- **No dependencies** for core Tm/Ta calculations. Biopython is optional (only needed for reading GenBank template files in DMSO analysis).
+
+**Dependencies:** Biopython (for GenBank template analysis in DMSO features).
 
 ## Installation
 
 ```bash
-# From PyPI
 pip install polymerase-tm
-
-# With Biopython support (for GenBank template analysis)
-pip install polymerase-tm[bio]
 
 # From conda-forge (when available)
 mamba install -c conda-forge polymerase-tm
@@ -28,7 +29,7 @@ mamba install -c conda-forge polymerase-tm
 ### Python API
 
 ```python
-from polymerase_tm import tm, ta, dmso_recommendation
+from polymerase_tm import tm, ta
 
 # Single primer Tm (Q5, 500 nM)
 print(tm("ATGTCCCTGCTCTTCTCTCGATGCAA"))          # 72
@@ -54,6 +55,56 @@ for p in list_polymerases():
     print(f"{p['key']:25s} {p['description']}")
 ```
 
+### Automation & Batch Processing
+
+```python
+from polymerase_tm import (
+    batch_tm,                 # Bulk Tm for many sequences
+    optimal_binding_length,   # Find shortest binding region for target Tm
+    check_pair,               # Full primer pair compatibility report
+    pcr_protocol,             # Generate complete PCR cycling protocol
+    reverse_complement,       # DNA reverse complement
+    from_csv, to_csv,         # CSV batch I/O
+)
+
+# Batch Tm for multiple primers
+results = batch_tm(["ATCGATCGATCG", "GCGCGCGCGCGC", "AATTCCGGAATT"])
+for r in results:
+    print(f"{r['sequence']}: Tm={r['tm']} degC, GC={r['gc_pct']}%")
+
+# Find optimal binding length for a target Tm
+result = optimal_binding_length("ATGTCCCTGCTCTTCTCTCGATGCAA", target_tm=65)
+print(f"{result['binding_seq']} ({result['length']} nt, Tm={result['tm']})")
+# CCTGCTCTTCTCTCGATGCAA (21 nt, Tm=67)
+
+# Primer pair compatibility check (includes auto additive recommendation)
+pair = check_pair("ATGTCCCTGCTCTTCTCTCGATGCAA", "GTGCCTCCGAGCCAGCACC")
+print(f"Ta={pair['ta']}, compatible={pair['compatible']}")
+if pair["additive"]["recommended"]:
+    print(f"Use {pair['additive']['additive']} ({pair['additive']['concentration']})")
+    # -> "Use Q5 High GC Enhancer (1x)" for Q5 with high-GC primers
+    # -> "Use DMSO (3%)" for Taq with high-GC primers
+
+# Generate full PCR cycling protocol
+protocol = pcr_protocol(
+    "ATGTCCCTGCTCTTCTCTCGATGCAA",
+    "GTGCCTCCGAGCCAGCACC",
+    amplicon_length=2500,
+)
+for step in protocol["cycling"]:
+    print(f"{step['step']:25s} {step['temp']} degC  {step['time']}")
+# Initial Denaturation       98 degC  30 s
+# Denaturation               98 degC  10 s
+# Annealing                  72 degC  30 s
+# Extension                  72 degC  1 min 15 s
+# Final Extension            72 degC  2 min
+# Hold                        4 degC  indefinite
+
+# CSV pipeline: read primers, compute everything, write results
+results = from_csv("primers.csv")  # expects columns: name, fwd, rev
+to_csv(results, "results_with_tm.csv")
+```
+
 ### DMSO Analysis
 
 ```python
@@ -62,7 +113,7 @@ from polymerase_tm import dmso_recommendation, print_dmso_report
 report = dmso_recommendation(
     fwd_bind="ATGTCCCTGCTCTTCTCTCGATGCAA",
     rev_bind="GTGCCTCCGAGCCAGCACC",
-    template_file="template.gbk",     # optional, requires biopython
+    template_file="template.gbk",     # optional GenBank template
 )
 print_dmso_report(report)
 ```
@@ -73,7 +124,7 @@ print_dmso_report(report)
 # Single primer Tm
 polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA
 
-# Primer pair Ta
+# Primer pair Ta (includes auto additive recommendation)
 polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
 # Different polymerase
@@ -86,8 +137,28 @@ polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 polymerase-tm --list
 
 # DMSO analysis with template
-polymerase-tm --dmso-check --template template.gbk ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
+polymerase-tm --dmso-check --template template.gbk FWD_SEQ REV_SEQ
+
+# Version
+polymerase-tm --version
 ```
+
+## API Reference
+
+| Function | Description |
+|:---|:---|
+| `tm(seq, polymerase)` | Melting temperature for one primer |
+| `ta(seq1, seq2, polymerase, dmso_pct)` | Annealing temperature for a primer pair |
+| `batch_tm(sequences, polymerase)` | Batch Tm for multiple sequences |
+| `check_pair(fwd, rev, polymerase)` | Pair compatibility + additive recommendation |
+| `pcr_protocol(fwd, rev, polymerase, amplicon_length)` | Full PCR cycling protocol |
+| `optimal_binding_length(seq, target_tm, polymerase)` | Find shortest binding region for target Tm |
+| `reverse_complement(seq)` | DNA reverse complement |
+| `from_csv(path, polymerase)` | Read primer pairs from CSV, compute Tm/Ta |
+| `to_csv(results, path)` | Write results to CSV |
+| `list_polymerases()` | List all 22 supported polymerases |
+| `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
+| `gc_content(seq)` | GC content as fraction |
 
 ## Algorithm
 
