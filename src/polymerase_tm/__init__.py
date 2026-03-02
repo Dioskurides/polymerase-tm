@@ -342,15 +342,23 @@ def list_polymerases() -> list[dict]:
     Returns
     -------
     list[dict]
-        Each dict has keys: key, description, buffer_salt_mM, conc_nM.
+        Each dict has keys: key, description, buffer_salt_mM,
+        primer_conc_nM, ta_rule.
     """
     out = []
     for key, poly in POLYMERASES.items():
+        if poly["ta_rule"] == "phusion":
+            ta_rule_str = f"0.93*min(Tm)+7.5, cap {poly['ta_cap']}"
+        else:
+            offset = poly.get("ta_offset", 0)
+            offset_str = f"{offset:+d}" if offset != 0 else ""
+            ta_rule_str = f"min(Tm){offset_str}, cap {poly['ta_cap']}"
         out.append({
             "key": key,
             "description": poly["description"],
             "buffer_salt_mM": BUFFERS[poly["buffer"]],
             "primer_conc_nM": poly["conc"],
+            "ta_rule": ta_rule_str,
         })
     return out
 
