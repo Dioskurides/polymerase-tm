@@ -146,10 +146,8 @@ def plot_virtual_gel(
     for i in range(num_lanes):
         x_center = 2.0 + (i * 2.0)  # Start the first lane further to the right
         lane_xs.append(x_center)
-        # Background lane
-        ax.add_patch(Rectangle((x_center - 0.5, 0), 1, gel_length_cm + 1.0, facecolor="#1a1a1a", alpha=0.5, zorder=1))
-        # Well
-        ax.add_patch(Rectangle((x_center - 0.35, -0.2), 0.7, 0.2, facecolor="#000000", edgecolor="#333333", zorder=2))
+        # Well (Tasche)
+        ax.add_patch(Rectangle((x_center - 0.4, -0.2), 0.8, 0.25, facecolor="#000000", edgecolor="#444444", lw=1.5, zorder=2))
 
     glow_color = "#33ffcc"
     band_color = "#e6ffff"
