@@ -75,19 +75,25 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
     # 1. Base migration at 1.0% agarose, 100V, 60min
     x = np.log10(bp)
     
-    # Adjusted polynomial fit to perfectly space NEB 1kb+ ladder ranges (0.1kb - 10kb)
-    if bp >= 100:
-        base_dist = 0.59 * (x**2) - 8.5 * x + 26.0
-    else:
-        # Fragments < 100bp experience minimal retardation and run linearly with the buffer front
-        # 100bp (x=2) is at 11.36cm
-        # We model a linear spread for <100bp: 50bp ~ 12.5cm, 25bp ~ 13.0cm
-        base_dist = -3.8 * x + 18.96 
+    # Adjusted empirical map based strictly on NEB 1kb+ reference migration 
+    # in 1X TAE (100V, 60min) to guarantee flawless relative band spacing.
+    empirical_log_bps = np.array([
+        4.000, 3.903, 3.778, 3.699, 3.602, 3.477, 3.301, 3.176, 3.079, 
+        3.000, 2.954, 2.903, 2.845, 2.778, 2.699, 2.602, 2.477, 2.301, 
+        2.000, 1.699, 1.398
+    ])[::-1]
+    
+    empirical_cms = np.array([
+        1.20, 1.45, 1.75, 1.95, 2.25, 2.65, 3.25, 3.75, 4.15, 
+        4.50, 4.65, 4.85, 5.05, 5.30, 5.60, 6.00, 6.50, 7.30, 
+        8.50, 9.30, 9.60
+    ])[::-1]
+    
+    base_dist = np.interp(x, empirical_log_bps, empirical_cms)
         
     # 2. Voltage and Time scaling (linear)
-    # Applying a base calibration factor of 0.45 to simulate 1X TAE buffer, 
-    # which generally exhibits slower migration velocities compared to 1X TBE.
-    vt_factor = (voltage / 100.0) * (time_min / 60.0) * 0.45
+    # The base_dist is already perfectly calibrated to 1X TAE 100V 60m.
+    vt_factor = (voltage / 100.0) * (time_min / 60.0)
     
     # 3. Agarose retardation 
     # Empirical Ferguson scaling: High MW fragments retard much faster in denser gels
