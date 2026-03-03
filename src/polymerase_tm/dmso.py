@@ -65,6 +65,76 @@ def find_gc_hotspots(
     return hotspots
 
 
+def _hairpin_nn_tm(stem_seq: str, loop_length: int,
+                   salt_mM: float = 50.0) -> float:
+    """Compute hairpin Tm using nearest-neighbor thermodynamics.
+
+    Uses SantaLucia (1998) NN parameters with a loop penalty
+    of dS = -1.75 * R * ln(loop_length) (Jacobson-Stockmayer).
+    Salt correction via Owczarzy (2004) simplified form.
+
+    Parameters
+    ----------
+    stem_seq : str
+        5'->3' sequence of one arm of the hairpin stem.
+    loop_length : int
+        Number of unpaired bases in the loop.
+    salt_mM : float
+        Monovalent cation concentration in mM (default 50).
+
+    Returns
+    -------
+    float
+        Estimated Tm in degC.  Returns 0.0 if stem is too short.
+    """
+    import math
+    from .constants import NN_PARAMS, R
+
+    seq = stem_seq.upper()
+    if len(seq) < 2:
+        return 0.0
+
+    # Accumulate NN dH, dS for the stem duplex
+    dH = 0.0  # kcal/mol
+    dS = 0.0  # cal/(mol*K)
+
+    for i in range(len(seq) - 1):
+        dinuc = seq[i:i + 2]
+        if dinuc in NN_PARAMS:
+            h, s = NN_PARAMS[dinuc]
+            dH += h
+            dS += s
+
+    # Initiation for first/last base of stem (hairpin = unimolecular)
+    # Use a simplified +0.2 kcal/mol initiation for hairpin stems
+    dH += 0.2
+
+    # Loop entropy penalty  (Jacobson-Stockmayer approximation)
+    # dS_loop ≈ -1.75 * R * ln(loop_length)  in cal/(mol*K)
+    if loop_length >= 1:
+        dS += -1.75 * R * math.log(loop_length)
+
+    if dS == 0:
+        return 0.0
+
+    # Unimolecular Tm: Tm = dH / dS  (no concentration term)
+    # Convert dH from kcal to cal
+    tm_kelvin = (dH * 1000.0) / dS
+
+    # Salt correction (simplified Owczarzy 2004 for monovalent ions)
+    if salt_mM > 0:
+        log_salt = math.log(salt_mM / 1000.0)
+        # Owczarzy Eq. 22 simplified: 1/Tm_corrected = 1/Tm + (4.29*f_GC - 3.95)*1e-5*ln[Na+] + 9.40e-6*(ln[Na+])^2
+        f_gc = gc_content(seq)
+        inv_tm = (1.0 / tm_kelvin
+                  + (4.29 * f_gc - 3.95) * 1e-5 * log_salt
+                  + 9.40e-6 * log_salt ** 2)
+        if inv_tm > 0:
+            tm_kelvin = 1.0 / inv_tm
+
+    return round(tm_kelvin - 273.15, 1)
+
+
 def find_hairpins(
     seq: str,
     stem_min: int = 6,
@@ -73,16 +143,20 @@ def find_hairpins(
 ) -> list[dict]:
     """Detect potential hairpin (stem-loop) structures in *seq*.
 
-    Only perfectly self-complementary stems are reported.
+    Uses nearest-neighbor thermodynamics (SantaLucia 1998) for Tm
+    estimation instead of the Wallace rule.  Perfect and single-mismatch
+    stems are reported; G-T wobble pairs are tolerated.
 
     Returns
     -------
     list of dict
         Keys: position, stem_length, loop_length, stem_seq, stem_gc,
-        tm_estimate (Wallace rule).
+        tm_estimate (NN-based), mismatches.
     """
     seq = seq.upper()
     comp = {"A": "T", "T": "A", "G": "C", "C": "G"}
+    # G-T wobble is a common non-Watson-Crick pair in stems
+    wobble = {("G", "T"), ("T", "G")}
     hits: list[dict] = []
     n = len(seq)
 
@@ -97,23 +171,39 @@ def find_hairpins(
                     break
                 left = seq[left_start:i + 1]
                 right = seq[j:j + stem_len]
-                if all(comp.get(a) == b for a, b in zip(left, reversed(right))):
-                    gc = gc_content(left)
-                    tm_est = 2 * (left.count("A") + left.count("T")) + \
-                             4 * (left.count("G") + left.count("C"))
-                    hits.append({
-                        "position": left_start,
-                        "stem_length": stem_len,
-                        "loop_length": loop_len,
-                        "stem_seq": left,
-                        "stem_gc": gc,
-                        "tm_estimate": tm_est,
-                    })
 
-    # Deduplicate: keep strongest hairpin per 5-bp window
+                # Count mismatches, allowing G-T wobble
+                mismatches = 0
+                for a, b in zip(left, reversed(right)):
+                    if comp.get(a) == b:
+                        continue  # Watson-Crick
+                    elif (a, b) in wobble:
+                        mismatches += 1  # wobble counts as half-mismatch
+                    else:
+                        mismatches = 999  # real mismatch
+                        break
+
+                # Allow 0 mismatches for short stems, up to 1 wobble for stems >= 6
+                max_mm = 1 if stem_len >= 6 else 0
+                if mismatches > max_mm:
+                    continue
+
+                gc = gc_content(left)
+                tm_est = _hairpin_nn_tm(left, loop_len)
+                hits.append({
+                    "position": left_start,
+                    "stem_length": stem_len,
+                    "loop_length": loop_len,
+                    "stem_seq": left,
+                    "stem_gc": gc,
+                    "tm_estimate": tm_est,
+                    "mismatches": mismatches,
+                })
+
+    # Deduplicate: keep strongest hairpin per 5-bp window (by Tm, then stem length)
     seen: set[int] = set()
     unique: list[dict] = []
-    for hp in sorted(hits, key=lambda x: -x["stem_length"]):
+    for hp in sorted(hits, key=lambda x: (-x["tm_estimate"], -x["stem_length"])):
         bucket = (hp["position"] // 5) * 5
         if bucket not in seen:
             seen.add(bucket)

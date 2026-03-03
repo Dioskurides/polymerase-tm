@@ -281,10 +281,15 @@ def check_pair(
     warnings = []
     if diff > 5:
         warnings.append(
-            f"Tm difference is {diff} degC (> 5 degC). Consider redesigning "
-            f"primers to reduce the Tm gap."
+            f"Tm difference is {diff} degC (> 5 degC). A touchdown protocol "
+            f"is strongly recommended (use pcr_protocol() with touchdown=True)."
         )
-    if diff > 2:
+    elif diff > 3:
+        warnings.append(
+            f"Tm difference is {diff} degC (> 3 degC). Consider a touchdown "
+            f"protocol for better specificity (pcr_protocol() auto-enables it)."
+        )
+    if diff > 2 and diff <= 3:
         warnings.append(
             f"Tm difference is {diff} degC (> 2 degC). Minor mismatch in "
             f"annealing efficiency possible."
@@ -327,12 +332,22 @@ def pcr_protocol(
     dmso_pct: float = 0,
     num_cycles: int = 30,
     template: Optional[str] = None,
+    touchdown: Optional[bool] = None,
+    td_step: float = 0.5,
+    td_cycles: int = 10,
 ) -> dict:
     """Generate a complete PCR cycling protocol.
 
     Extension times are calculated from the amplicon length and the
     polymerase's extension rate. Denaturation and annealing temperatures
     are polymerase-specific.
+
+    When the primer Tm difference exceeds 3 degC, a **touchdown**
+    protocol is automatically suggested (set ``touchdown=True`` to
+    force, ``touchdown=False`` to suppress).  Touchdown starts
+    annealing at the higher primer Tm and decreases by *td_step*
+    degC per cycle for *td_cycles* cycles, then continues at the
+    standard Ta for the remaining cycles.
 
     Parameters
     ----------
@@ -350,6 +365,14 @@ def pcr_protocol(
     template : str, optional
         Template sequence. If provided, amplicon_length is derived
         automatically.
+    touchdown : bool or None
+        Force touchdown (``True``) or standard (``False``) protocol.
+        If ``None`` (default), touchdown is auto-enabled when
+        primer Tm difference > 3 degC.
+    td_step : float
+        Temperature decrement per touchdown cycle (default 0.5 degC).
+    td_cycles : int
+        Number of touchdown cycles (default 10).
 
     Returns
     -------
@@ -399,6 +422,7 @@ def pcr_protocol(
 
     params = EXTENSION_RATES[family]
     result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct)
+    tm_diff = abs(t1 - t2)
 
     # Automatically determine amplicon length if template is provided
     expected_amplicon_seq = None
@@ -421,60 +445,150 @@ def pcr_protocol(
             return f"{m} min {s:02d} s" if s else f"{m} min"
         return f"{seconds} s"
 
-    cycling = [
-        {
-            "step": "Initial Denaturation",
-            "temp": params["denat_temp"],
-            "time": fmt_time(params["denat_init"]),
-            "seconds": params["denat_init"],
-            "cycles": 1,
-        },
-        {
-            "step": "Denaturation",
-            "temp": params["denat_temp"],
-            "time": fmt_time(params["denat_cycle"]),
-            "seconds": params["denat_cycle"],
-            "cycles": num_cycles,
-        },
-        {
-            "step": "Annealing",
-            "temp": result_ta,
-            "time": fmt_time(30),
-            "seconds": 30,
-            "cycles": num_cycles,
-        },
-        {
-            "step": "Extension",
-            "temp": params["ext_temp"],
-            "time": fmt_time(ext_time),
-            "seconds": ext_time,
-            "cycles": num_cycles,
-        },
-        {
-            "step": "Final Extension",
-            "temp": params["ext_temp"],
-            "time": fmt_time(params["final_ext"]),
-            "seconds": params["final_ext"],
-            "cycles": 1,
-        },
-        {
-            "step": "Hold",
-            "temp": 4,
-            "time": "indefinite",
-            "seconds": 0,
-            "cycles": 1,
-        },
-    ]
+    # Decide whether to use touchdown
+    use_touchdown = touchdown if touchdown is not None else (tm_diff > 3)
 
-    total_seconds = (
-        params["denat_init"]
-        + num_cycles * (params["denat_cycle"] + 30 + ext_time)
-        + params["final_ext"]
-    )
+    if use_touchdown:
+        # Touchdown: start at higher Tm, step down to Ta
+        td_start = max(t1, t2)
+        td_end = result_ta
+        # Clamp td_cycles so we don't go below Ta
+        max_td_cycles = int((td_start - td_end) / td_step) if td_step > 0 else 0
+        actual_td_cycles = min(td_cycles, max_td_cycles, num_cycles)
+        remaining_cycles = num_cycles - actual_td_cycles
+
+        cycling = [
+            {
+                "step": "Initial Denaturation",
+                "temp": params["denat_temp"],
+                "time": fmt_time(params["denat_init"]),
+                "seconds": params["denat_init"],
+                "cycles": 1,
+            },
+            {
+                "step": "Touchdown Denaturation",
+                "temp": params["denat_temp"],
+                "time": fmt_time(params["denat_cycle"]),
+                "seconds": params["denat_cycle"],
+                "cycles": actual_td_cycles,
+            },
+            {
+                "step": "Touchdown Annealing",
+                "temp": f"{td_start} -> {td_start - actual_td_cycles * td_step:.0f}",
+                "temp_start": td_start,
+                "temp_end": round(td_start - actual_td_cycles * td_step, 1),
+                "temp_step": -td_step,
+                "time": fmt_time(30),
+                "seconds": 30,
+                "cycles": actual_td_cycles,
+                "note": f"-{td_step} degC/cycle",
+            },
+            {
+                "step": "Touchdown Extension",
+                "temp": params["ext_temp"],
+                "time": fmt_time(ext_time),
+                "seconds": ext_time,
+                "cycles": actual_td_cycles,
+            },
+            {
+                "step": "Denaturation",
+                "temp": params["denat_temp"],
+                "time": fmt_time(params["denat_cycle"]),
+                "seconds": params["denat_cycle"],
+                "cycles": remaining_cycles,
+            },
+            {
+                "step": "Annealing",
+                "temp": result_ta,
+                "time": fmt_time(30),
+                "seconds": 30,
+                "cycles": remaining_cycles,
+            },
+            {
+                "step": "Extension",
+                "temp": params["ext_temp"],
+                "time": fmt_time(ext_time),
+                "seconds": ext_time,
+                "cycles": remaining_cycles,
+            },
+            {
+                "step": "Final Extension",
+                "temp": params["ext_temp"],
+                "time": fmt_time(params["final_ext"]),
+                "seconds": params["final_ext"],
+                "cycles": 1,
+            },
+            {
+                "step": "Hold",
+                "temp": 4,
+                "time": "indefinite",
+                "seconds": 0,
+                "cycles": 1,
+            },
+        ]
+
+        total_seconds = (
+            params["denat_init"]
+            + actual_td_cycles * (params["denat_cycle"] + 30 + ext_time)
+            + remaining_cycles * (params["denat_cycle"] + 30 + ext_time)
+            + params["final_ext"]
+        )
+    else:
+        # Standard protocol
+        cycling = [
+            {
+                "step": "Initial Denaturation",
+                "temp": params["denat_temp"],
+                "time": fmt_time(params["denat_init"]),
+                "seconds": params["denat_init"],
+                "cycles": 1,
+            },
+            {
+                "step": "Denaturation",
+                "temp": params["denat_temp"],
+                "time": fmt_time(params["denat_cycle"]),
+                "seconds": params["denat_cycle"],
+                "cycles": num_cycles,
+            },
+            {
+                "step": "Annealing",
+                "temp": result_ta,
+                "time": fmt_time(30),
+                "seconds": 30,
+                "cycles": num_cycles,
+            },
+            {
+                "step": "Extension",
+                "temp": params["ext_temp"],
+                "time": fmt_time(ext_time),
+                "seconds": ext_time,
+                "cycles": num_cycles,
+            },
+            {
+                "step": "Final Extension",
+                "temp": params["ext_temp"],
+                "time": fmt_time(params["final_ext"]),
+                "seconds": params["final_ext"],
+                "cycles": 1,
+            },
+            {
+                "step": "Hold",
+                "temp": 4,
+                "time": "indefinite",
+                "seconds": 0,
+                "cycles": 1,
+            },
+        ]
+
+        total_seconds = (
+            params["denat_init"]
+            + num_cycles * (params["denat_cycle"] + 30 + ext_time)
+            + params["final_ext"]
+        )
 
     additive = additive_recommendation(fwd, rev, polymerase=polymerase)
 
-    return {
+    result = {
         "polymerase": polymerase,
         "polymerase_family": family,
         "fwd_tm": t1,
@@ -485,10 +599,19 @@ def pcr_protocol(
         "amplicon_sequence": expected_amplicon_seq,
         "extension_rate_s_per_kb": params["rate_s_per_kb"],
         "num_cycles": num_cycles,
+        "touchdown": use_touchdown,
         "cycling": cycling,
         "total_time_min": round(total_seconds / 60, 1),
         "additive": additive,
     }
+
+    if use_touchdown:
+        result["td_cycles"] = actual_td_cycles
+        result["td_start_temp"] = td_start
+        result["td_end_temp"] = round(td_start - actual_td_cycles * td_step, 1)
+        result["td_step"] = td_step
+
+    return result
 
 
 def from_csv(
