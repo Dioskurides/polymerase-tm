@@ -26,6 +26,24 @@ examples:
   List all supported polymerases:
     polymerase-tm --list
 
+python API (new in v0.5):
+  from polymerase_tm import primer_dimer, restriction_scan, primer_quality
+  from polymerase_tm import gibson_overlaps, RESTRICTION_ENZYMES
+
+  # Primer dimer check
+  primer_dimer(fwd, rev)  -> {risk_level, max_score, ...}
+
+  # Restriction scan (~120 NEB enzymes, or pass names/custom dict)
+  restriction_scan(seq)                            # all enzymes
+  restriction_scan(seq, enzymes=["EcoRI","BamHI"]) # by name
+  restriction_scan(seq, enzymes={"My": "AACGTT"})  # custom
+
+  # Primer quality score (0-100)
+  primer_quality(seq)  -> {score, grade, issues, ...}
+
+  # Gibson/HiFi Assembly overlap primer design
+  gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)
+
 algorithm:
   Tm:  SantaLucia (1998) nearest-neighbor + Owczarzy (2004) salt correction
   Ta:  Polymerase-specific rules (e.g. Q5: min(Tm1,Tm2)+1, cap 72 degC)
@@ -40,8 +58,9 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="polymerase-tm",
         description=(
-            "Compute primer melting temperature (Tm) and annealing temperature (Ta) "
-            "for 22 NEB polymerases. Reproduces the NEB Tm Calculator algorithm "
+            "Compute primer Tm/Ta for 22 NEB polymerases, plus primer dimer check, "
+            "restriction site scan (~120 NEB enzymes), quality scoring, and "
+            "Gibson Assembly overlap design. Reproduces the NEB Tm Calculator "
             "(SantaLucia 1998 + Owczarzy 2004) with polymerase-specific buffer "
             "conditions and Ta rules."
         ),
