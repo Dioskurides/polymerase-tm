@@ -1,5 +1,10 @@
 # polymerase-tm
 
+[![PyPI](https://img.shields.io/pypi/v/polymerase-tm)](https://pypi.org/project/polymerase-tm/)
+[![Tests](https://github.com/Dioskurides/polymerase-tm/actions/workflows/test.yml/badge.svg)](https://github.com/Dioskurides/polymerase-tm/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/pypi/pyversions/polymerase-tm)](https://pypi.org/project/polymerase-tm/)
+
 Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.com/) for PCR primer melting temperature (Tm) and annealing temperature (Ta) prediction.
 
 ## Features
@@ -10,6 +15,10 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 - **Batch processing** -- process hundreds of primer pairs from CSV files with full Tm/Ta/compatibility analysis.
 - **PCR protocol generator** -- generates complete cycling protocols with polymerase-specific temperatures and extension times.
 - **Smart primer design** -- find the optimal binding length for a target Tm.
+- **Primer dimer detection** -- checks 3'-end complementarity and self-dimer risk.
+- **Gibson Assembly overlap design** -- generates full primers with overhangs for Gibson/HiFi Assembly.
+- **Restriction site scanning** -- scans primers for 14 common restriction enzyme sites (customizable).
+- **Primer quality scoring** -- comprehensive 0-100 score evaluating GC clamp, runs, repeats, hairpins.
 - **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures.
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
 
@@ -157,6 +166,10 @@ polymerase-tm --version
 | `from_csv(path, polymerase)` | Read primer pairs from CSV, compute Tm/Ta |
 | `to_csv(results, path)` | Write results to CSV |
 | `list_polymerases()` | List all 22 supported polymerases |
+| `primer_dimer(fwd, rev)` | Check 3' complementarity / dimer risk |
+| `gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)` | Design Gibson/HiFi Assembly primers |
+| `restriction_scan(seq, enzymes)` | Scan for restriction sites (14 default enzymes) |
+| `primer_quality(seq)` | Quality score 0-100 with issues list |
 | `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
 | `gc_content(seq)` | GC content as fraction |
 
