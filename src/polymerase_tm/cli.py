@@ -137,6 +137,20 @@ def main(argv: list[str] | None = None) -> None:
         help="Generate a virtual agarose gel image if an amplicon size is known (default: virtual_gel.png).",
     )
     parser.add_argument(
+        "--plot-gel-sizes",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="BP",
+        help="Provide additional amplicon sizes (in bp) to render them in separate lanes next to the ladder.",
+    )
+    parser.add_argument(
+        "--ladder",
+        default="1kb_plus",
+        choices=["1kb_plus", "1kb", "100bp", "50bp", "low_mw", "pcr_marker"],
+        help="Choose the DNA ladder for the virtual gel. Default: 1kb_plus",
+    )
+    parser.add_argument(
         "--buffer",
         default=None,
         metavar="NAME",
@@ -209,6 +223,19 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if not args.primers:
+        # Check if the user just wants to render a virtual gel without any primers
+        if args.plot_gel and getattr(args, "plot_gel_sizes", None):
+            try:
+                from polymerase_tm.gel import plot_virtual_gel  # type: ignore
+                success = plot_virtual_gel(args.plot_gel_sizes, ladder_name=args.ladder, output_path=args.plot_gel)
+                if success:
+                    print(f"\n  [GEL] Saved virtual gel to: {args.plot_gel}\n")
+                else:
+                    print(f"\n  [GEL] WARNING: Could not plot gel. Ensure seaborn and matplotlib are installed.\n")
+            except ImportError:
+                pass
+            sys.exit(0)
+            
         parser.print_help()
         sys.exit(0)
 
@@ -277,10 +304,16 @@ def main(argv: list[str] | None = None) -> None:
                 print(f"  Total Time: ~{protocol['total_time_min']} min\n")
                 
                 # Check for gel plot request
-                if args.plot_gel and amp_len:
-                    success = plot_virtual_gel(amp_len, output_path=args.plot_gel)
+                sizes_to_plot = []
+                if amp_len:
+                    sizes_to_plot.append(amp_len)
+                if getattr(args, "plot_gel_sizes", None):
+                    sizes_to_plot.extend(args.plot_gel_sizes)
+                    
+                if args.plot_gel and sizes_to_plot:
+                    success = plot_virtual_gel(sizes_to_plot, ladder_name=args.ladder, output_path=args.plot_gel)
                     if success:
-                        print(f"  [GEL] Saved virtual gel to: {args.plot_gel}\n")
+                        print(f"  [GEL] Saved virtual gel to: {args.plot_gel} (Ladder: {args.ladder})\n")
                     else:
                         print(f"  [GEL] WARNING: Could not plot gel. Ensure seaborn and matplotlib are installed.\n")
                 
