@@ -146,12 +146,14 @@ def plot_virtual_gel(
     for i in range(num_lanes):
         x_center = 2.0 + (i * 2.0)  # Start the first lane further to the right
         lane_xs.append(x_center)
-        # Well (Tasche)
-        ax.add_patch(Rectangle((x_center - 0.4, -0.2), 0.8, 0.25, facecolor="#000000", edgecolor="#444444", lw=1.5, zorder=2))
+        # Well (Tasche) - slightly narrower so the band fans out realistically
+        ax.add_patch(Rectangle((x_center - 0.35, -0.2), 0.7, 0.25, facecolor="#000000", edgecolor="#444444", lw=1.5, zorder=2))
 
     glow_color = "#33ffcc"
     band_color = "#e6ffff"
     band_width = 0.6
+    
+    max_dist_plotted = 0.0
     
     # Plot Ladder (Lane 1)
     lane1_x = lane_xs[0]
@@ -159,6 +161,8 @@ def plot_virtual_gel(
         dist = _get_migration_distance_cm(bp, agarose_pct, voltage, time_min)
         if dist > gel_length_cm + 2.0:
             continue  # fragment ran off the gel entirely
+            
+        max_dist_plotted = max(max_dist_plotted, dist)
             
         # Thinner bands for a much more realistic look
         thickness = 0.03 * (intensity ** 0.5)
@@ -189,6 +193,8 @@ def plot_virtual_gel(
                     color="#ff4444", ha="center", va="top", fontsize=9, fontweight="bold")
             continue
             
+        max_dist_plotted = max(max_dist_plotted, dist_amp)
+        
         thickness_amp = 0.04
         # Outer glow
         ax.add_patch(Rectangle((lane_x - band_width/2, dist_amp - thickness_amp*1.5), band_width, thickness_amp*3, 
@@ -205,9 +211,11 @@ def plot_virtual_gel(
     
     max_x = max(lane_xs) + 2.0
     ax.set_xlim(0, max_x)
-    # Print the physical dimensions using invert Y so 0 is at top.
-    # We add 1.0 cm padding at the bottom so fast fragments (like 100bp @ 12.5cm) don't get cut off
-    ax.set_ylim(gel_length_cm + 1.0, -0.5)
+    # 1.0 cm padding at the bottom so the fastest fragment doesn't get cut off.
+    # We dynamically crop at max_dist_plotted instead of the theoretical gel_length_cm
+    # to avoid huge black voids if the gel was only run for a short time.
+    plot_bottom = min(gel_length_cm + 1.0, max_dist_plotted + 1.0)
+    ax.set_ylim(plot_bottom, -0.5)
     
     x_ticks = lane_xs
     x_labels = [ladder_label] + [f"Sample {i+1}" if len(amplicons) > 1 else "Sample" for i in range(len(amplicons))]
