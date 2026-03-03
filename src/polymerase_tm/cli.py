@@ -160,15 +160,16 @@ def main(argv: list[str] | None = None) -> None:
         dest="list_buffers",
         help="List all 15 NEB buffers with their effective salt concentrations.",
     )
+    from polymerase_tm import __version__  # type: ignore
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {__import__('polymerase_tm').__version__}",
+        version=f"%(prog)s {__version__}",
     )
 
     args = parser.parse_args(argv)
 
-    from polymerase_tm import (
+    from polymerase_tm import (  # type: ignore
         tm,
         ta,
         list_polymerases,
@@ -233,7 +234,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  Ta:         {result_ta} degC")
 
         # Auto additive recommendation
-        from polymerase_tm import _additive_recommendation
+        from polymerase_tm import _additive_recommendation  # type: ignore
         additive = _additive_recommendation(seq1, seq2, polymerase=poly)
         if additive["recommended"]:
             print(f"\n  [!] RECOMMENDATION: {additive['additive']} ({additive['concentration']})")
