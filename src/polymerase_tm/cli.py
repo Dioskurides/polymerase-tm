@@ -151,6 +151,27 @@ def main(argv: list[str] | None = None) -> None:
         help="Choose the DNA ladder for the virtual gel. Default: 1kb_plus",
     )
     parser.add_argument(
+        "--agarose",
+        type=float,
+        default=1.0,
+        metavar="PCT",
+        help="Agarose percentage (w/v) for virtual gel physics. Default: 1.0",
+    )
+    parser.add_argument(
+        "--voltage",
+        type=float,
+        default=110.0,
+        metavar="V",
+        help="Voltage for virtual gel physics. Default: 110.0",
+    )
+    parser.add_argument(
+        "--time",
+        type=float,
+        default=60.0,
+        metavar="MIN",
+        help="Runtime in minutes for virtual gel physics. Default: 60.0",
+    )
+    parser.add_argument(
         "--buffer",
         default=None,
         metavar="NAME",
@@ -227,7 +248,14 @@ def main(argv: list[str] | None = None) -> None:
         if args.plot_gel and getattr(args, "plot_gel_sizes", None):
             try:
                 from polymerase_tm.gel import plot_virtual_gel  # type: ignore
-                success = plot_virtual_gel(args.plot_gel_sizes, ladder_name=args.ladder, output_path=args.plot_gel)
+                success = plot_virtual_gel(
+                    args.plot_gel_sizes, 
+                    ladder_name=args.ladder, 
+                    output_path=args.plot_gel,
+                    agarose_pct=args.agarose,
+                    voltage=args.voltage,
+                    time_min=args.time
+                )
                 if success:
                     print(f"\n  [GEL] Saved virtual gel to: {args.plot_gel}\n")
                 else:
@@ -311,7 +339,14 @@ def main(argv: list[str] | None = None) -> None:
                     sizes_to_plot.extend(args.plot_gel_sizes)
                     
                 if args.plot_gel and sizes_to_plot:
-                    success = plot_virtual_gel(sizes_to_plot, ladder_name=args.ladder, output_path=args.plot_gel)
+                    success = plot_virtual_gel(
+                        sizes_to_plot, 
+                        ladder_name=args.ladder, 
+                        output_path=args.plot_gel,
+                        agarose_pct=args.agarose,
+                        voltage=args.voltage,
+                        time_min=args.time
+                    )
                     if success:
                         print(f"  [GEL] Saved virtual gel to: {args.plot_gel} (Ladder: {args.ladder})\n")
                     else:
