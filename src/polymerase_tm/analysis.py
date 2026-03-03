@@ -6,15 +6,36 @@ primer_dimer, gibson_overlaps, restriction_scan, and primer_quality.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from .core import tm
 from .dmso import gc_content, primer_hairpin, _reverse_complement
 
 
+# IUPAC ambiguity code to regex character class mapping
+_IUPAC_MAP: dict[str, str] = {
+    "A": "A", "T": "T", "G": "G", "C": "C",
+    "R": "[AG]", "Y": "[CT]", "S": "[GC]", "W": "[AT]",
+    "M": "[AC]", "K": "[GT]", "B": "[CGT]", "V": "[ACG]",
+    "D": "[AGT]", "H": "[ACT]", "N": "[ATGC]",
+}
+
+
+def _iupac_to_regex(site: str) -> str:
+    """Convert an IUPAC DNA recognition site to a regex pattern."""
+    return "".join(_IUPAC_MAP.get(c, re.escape(c)) for c in site.upper())
+
+
+def _has_degenerate(site: str) -> bool:
+    """Check if a recognition site contains degenerate IUPAC bases."""
+    return bool(set(site.upper()) - set("ATGC"))
+
+
 # Comprehensive restriction enzyme recognition sites (5'->3')
-# All common NEB enzymes with unambiguous (ATGC-only) recognition sequences.
-# Enzymes with degenerate bases (N, R, Y, etc.) are excluded for exact matching.
+# All common NEB enzymes, including those with degenerate IUPAC bases
+# (N, R, Y, S, W, M, K, etc.).  Degenerate sites are matched via
+# regex expansion at scan time.
 RESTRICTION_ENZYMES: dict[str, str] = {
     # --- 4-cutters ---
     "AluI": "AGCT",
@@ -323,6 +344,9 @@ def restriction_scan(
 ) -> list[dict]:
     """Scan a DNA sequence for restriction enzyme recognition sites.
 
+    Supports IUPAC ambiguity codes (N, R, Y, S, W, M, K, B, V, D, H)
+    in recognition sites — degenerate sites are matched via regex.
+
     Parameters
     ----------
     seq : str
@@ -370,35 +394,59 @@ def restriction_scan(
     hits = []
     for name, site in enzyme_dict.items():
         site = site.upper()
-        # Forward strand
-        pos = 0
-        while True:
-            idx = seq.find(site, pos)
-            if idx == -1:
-                break
-            hits.append({
-                "enzyme": name,
-                "site": site,
-                "position": idx,
-                "strand": "+",
-            })
-            pos = idx + 1
+        degenerate = _has_degenerate(site)
 
-        # Reverse strand (check if site is palindromic first)
-        site_rc = _reverse_complement(site)
-        if site_rc != site:
+        if degenerate:
+            # Use regex matching for IUPAC-degenerate sites
+            pattern = _iupac_to_regex(site)
+            for m in re.finditer(f"(?=({pattern}))", seq):
+                hits.append({
+                    "enzyme": name,
+                    "site": m.group(1),
+                    "position": m.start(),
+                    "strand": "+",
+                })
+            # Reverse strand
+            site_rc = _reverse_complement(site)
+            if site_rc != site:
+                pattern_rc = _iupac_to_regex(site_rc)
+                for m in re.finditer(f"(?=({pattern_rc}))", seq):
+                    hits.append({
+                        "enzyme": name,
+                        "site": m.group(1),
+                        "position": m.start(),
+                        "strand": "-",
+                    })
+        else:
+            # Fast exact matching for unambiguous sites
             pos = 0
             while True:
-                idx = seq.find(site_rc, pos)
+                idx = seq.find(site, pos)
                 if idx == -1:
                     break
                 hits.append({
                     "enzyme": name,
-                    "site": site_rc,
+                    "site": site,
                     "position": idx,
-                    "strand": "-",
+                    "strand": "+",
                 })
                 pos = idx + 1
+
+            # Reverse strand (check if site is palindromic first)
+            site_rc = _reverse_complement(site)
+            if site_rc != site:
+                pos = 0
+                while True:
+                    idx = seq.find(site_rc, pos)
+                    if idx == -1:
+                        break
+                    hits.append({
+                        "enzyme": name,
+                        "site": site_rc,
+                        "position": idx,
+                        "strand": "-",
+                    })
+                    pos = idx + 1
 
     return sorted(hits, key=lambda x: x["position"])
 

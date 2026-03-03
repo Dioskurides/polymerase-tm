@@ -21,6 +21,7 @@ from polymerase_tm import (
     list_polymerases,
     from_csv,
     to_csv,
+    additive_recommendation,
     RESTRICTION_ENZYMES,
 )
 
@@ -325,3 +326,80 @@ class TestCsvRoundTrip:
             os.unlink(tmp_output)
         finally:
             os.unlink(tmp_input)
+
+
+# =====================================================================
+# v1.0 — New / Changed Features
+# =====================================================================
+
+class TestAdditiveRecommendation:
+    """Tests for the now-public additive_recommendation function."""
+
+    def test_public_import(self):
+        """additive_recommendation should be importable as a public name."""
+        assert callable(additive_recommendation)
+
+    def test_backward_compat_alias(self):
+        """The old _additive_recommendation name should still work."""
+        from polymerase_tm.batch import _additive_recommendation
+        assert _additive_recommendation is additive_recommendation
+
+    def test_no_additive_needed(self):
+        # Use ~50% GC primers that don't trigger any recommendation
+        result = additive_recommendation(
+            "ATCGATCGATCGATCGATCG",
+            "GCTAGCTAGCTAGCTAGCT",
+        )
+        assert result["recommended"] is False
+
+    def test_gc_rich_q5(self):
+        result = additive_recommendation("GCGCGCGCGCGCGCGCGCGC", "GCGCGCGCGCGCGCGC")
+        assert result["recommended"] is True
+        assert result["additive"] == "Q5 High GC Enhancer"
+
+    def test_gc_rich_taq_dmso(self):
+        result = additive_recommendation(
+            "GCGCGCGCGCGCGCGCGCGC", "GCGCGCGCGCGCGCGC", polymerase="taq"
+        )
+        assert result["recommended"] is True
+        assert result["additive"] == "DMSO"
+
+
+class TestIUPACRestrictionScan:
+    """Tests for degenerate IUPAC code support in restriction_scan."""
+
+    def test_degenerate_n_match(self):
+        """BlpI (GCTNAGC) should match GCTAAGC, GCTAGGC, etc."""
+        # Construct sequence containing GCTAAGC
+        seq = "AAAGCTAAGCAAA"
+        hits = restriction_scan(seq, enzymes=["BlpI"])
+        assert len(hits) >= 1
+        assert any(h["enzyme"] == "BlpI" for h in hits)
+
+    def test_degenerate_r_y_match(self):
+        """HincII (GTYRAC) should match e.g. GTTAAC, GTCGAC, etc."""
+        # GTTAAC = GT(Y=T)(R=A)AC
+        seq = "AAAGTTAACAAA"
+        hits = restriction_scan(seq, enzymes=["HincII"])
+        assert len(hits) >= 1
+        assert any(h["enzyme"] == "HincII" for h in hits)
+
+    def test_degenerate_no_false_positive(self):
+        """Degenerate sites should not match sequences that don't fit."""
+        # GCTNAGC: N=ATGC but the GCTXAGC where X is not ATGC won't appear
+        # Use a sequence that definitely doesn't contain GCTXAGC
+        seq = "AAAAAAAAAAAAAAAA"
+        hits = restriction_scan(seq, enzymes=["BlpI"])
+        assert len(hits) == 0
+
+    def test_exact_enzymes_still_fast(self):
+        """Non-degenerate enzymes still use exact matching."""
+        hits = restriction_scan("ATGAATTCGATCG", enzymes=["EcoRI"])
+        assert len(hits) >= 1
+        assert hits[0]["enzyme"] == "EcoRI"
+
+
+class TestVersion:
+    def test_version_is_1_0(self):
+        from polymerase_tm import __version__
+        assert __version__ == "1.0.0"

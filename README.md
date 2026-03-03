@@ -10,6 +10,7 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 ## Features
 
 - **Exact NEB Tm Calculator reproduction** -- algorithm recreated from the NEB Tm Calculator front-end source; verified against the official tool with 0 degC deviation across all tested sequences.
+- **Zero dependencies for core functions** -- `tm()`, `ta()`, `batch_tm()`, `check_pair()`, and all primer analysis work without any external packages.
 - **22 NEB polymerase products** with their specific buffer salt concentrations and Ta rules (Q5, Phusion, Taq, OneTaq, LongAmp, Vent, Deep Vent, and more).
 - **Automatic additive recommendation** -- suggests Q5 High GC Enhancer or DMSO based on primer GC, hairpins, and amplicon analysis.
 - **Batch processing** -- process hundreds of primer pairs from CSV files with full Tm/Ta/compatibility analysis.
@@ -17,17 +18,28 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 - **Smart primer design** -- find the optimal binding length for a target Tm.
 - **Primer dimer detection** -- checks 3'-end complementarity and self-dimer risk.
 - **Gibson Assembly overlap design** -- generates full primers with overhangs for Gibson/HiFi Assembly.
-- **Restriction site scanning** -- scans primers for ~120 NEB restriction enzyme sites (accepts enzyme names or custom dict).
+- **Restriction site scanning** -- scans primers for ~120 NEB restriction enzyme sites with full IUPAC ambiguity code support (accepts enzyme names or custom dict).
 - **Primer quality scoring** -- comprehensive 0-100 score evaluating GC clamp, runs, repeats, hairpins.
-- **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures.
+- **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures (requires `[bio]` extra for GenBank files).
+- **Virtual gel visualization** -- simulated agarose gel with realistic Ferguson-plot migration physics (requires `[viz]` extra).
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
 
-**Dependencies:** Biopython (for GenBank template analysis in DMSO features).
+**Optional dependencies:** Biopython (for GenBank template analysis), matplotlib + seaborn (for virtual gel).
 
 ## Installation
 
 ```bash
+# Core package (zero dependencies)
 pip install polymerase-tm
+
+# With GenBank template support (adds biopython)
+pip install polymerase-tm[bio]
+
+# With virtual gel visualization (adds matplotlib, seaborn)
+pip install polymerase-tm[viz]
+
+# Everything
+pip install polymerase-tm[all]
 
 # From conda-forge (when available)
 mamba install -c conda-forge polymerase-tm
@@ -201,10 +213,13 @@ polymerase-tm --version
 | `to_csv(results, path)` | Write results to CSV |
 | `primer_dimer(fwd, rev)` | Check 3' complementarity / dimer risk |
 | `gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)` | Design Gibson/HiFi Assembly primers |
-| `restriction_scan(seq, enzymes)` | Scan for restriction sites (~120 NEB enzymes, accepts name list or dict) |
+| `restriction_scan(seq, enzymes)` | Scan for restriction sites (~120 NEB enzymes, IUPAC support, accepts name list or dict) |
 | `primer_quality(seq)` | Quality score 0-100 with issues list |
+| `additive_recommendation(fwd, rev)` | DMSO / GC Enhancer recommendation |
 | `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
+| `print_dmso_report(report)` | Pretty-print a DMSO analysis report |
 | `gc_content(seq)` | GC content as fraction |
+| `plot_virtual_gel(fragments, ladder, ...)` | Simulated agarose gel image (requires `[viz]`) |
 
 > **Buffer / salt override:** `tm()` and `ta()` accept optional `buffer` (NEB buffer name) or `salt_mM` (direct mM value) to override the polymerase default. Priority: `salt_mM` > `buffer` > polymerase default.
 

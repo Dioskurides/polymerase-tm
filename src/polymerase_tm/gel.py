@@ -14,11 +14,10 @@ try:
     import matplotlib.pyplot as plt
     import seaborn as sns
     from matplotlib.patches import Rectangle
+    import numpy as np
     _HAS_VIZ = True
 except ImportError:
     _HAS_VIZ = False
-
-import numpy as np
 
 
 # Standard NEB DNA Ladders (Size in bp, relative intensity for visual thickness)
@@ -126,7 +125,10 @@ def plot_virtual_gel(
         bool: True if plotting succeeded, False if visualization libs are missing.
     """
     if not _HAS_VIZ:
-        return False
+        raise ImportError(
+            "Visualization requires matplotlib and seaborn. "
+            "Install with: pip install polymerase-tm[viz]"
+        )
         
     ladder = LADDERS.get(ladder_name, LADDERS["1kb_plus"])
     ladder_label = LADDER_LABELS.get(ladder_name, "Ladder")

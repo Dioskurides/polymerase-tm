@@ -1,13 +1,14 @@
 {% set name = "polymerase-tm" %}
-{% set version = "0.1.0" %}
+{% set version = "1.0.0" %}
+{% set python_min = "3.9" %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
-  url: https://pypi.org/packages/source/p/{{ name }}/{{ name }}-{{ version }}.tar.gz
-  # sha256: <fill after PyPI upload>
+  url: https://pypi.org/packages/source/p/{{ name }}/{{ name.replace('-', '_') }}-{{ version }}.tar.gz
+  # sha256: <update after PyPI upload>
 
 build:
   noarch: python
@@ -18,18 +19,26 @@ build:
 
 requirements:
   host:
-    - python >=3.9
+    - python {{ python_min }}
     - pip
     - hatchling
   run:
-    - python >=3.9
+    - python >={{ python_min }}
+  run_constrained:
+    - biopython >=1.80
+    - matplotlib-base >=3.5
+    - seaborn >=0.12
 
 test:
+  requires:
+    - pip
+    - python {{ python_min }}
   imports:
     - polymerase_tm
   commands:
     - polymerase-tm --help
     - polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA
+    - pip check
 
 about:
   home: https://github.com/Dioskurides/polymerase-tm
