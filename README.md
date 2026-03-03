@@ -108,7 +108,7 @@ if pair["additive"]["recommended"]:
 protocol = pcr_protocol(
     "ATGTCCCTGCTCTTCTCTCGATGCAA",
     "GTGCCTCCGAGCCAGCACC",
-    amplicon_length=2500,
+    template="...full template sequence...",  # Auto-calculates amplicon_length
 )
 for step in protocol["cycling"]:
     print(f"{step['step']:25s} {step['temp']} degC  {step['time']}")

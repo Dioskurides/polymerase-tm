@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Optional
 
 from .core import tm, ta
-from .dmso import gc_content, primer_hairpin, _reverse_complement
+from .dmso import gc_content, primer_hairpin, _reverse_complement, analyze_amplicon
 
 
 def reverse_complement(seq: str) -> str:
@@ -307,6 +307,7 @@ def pcr_protocol(
     amplicon_length: Optional[int] = None,
     dmso_pct: float = 0,
     num_cycles: int = 30,
+    template: Optional[str] = None,
 ) -> dict:
     """Generate a complete PCR cycling protocol.
 
@@ -327,6 +328,9 @@ def pcr_protocol(
         DMSO percentage.
     num_cycles : int
         Number of PCR cycles (default 30).
+    template : str, optional
+        Template sequence. If provided, amplicon_length is derived
+        automatically.
 
     Returns
     -------
@@ -376,6 +380,15 @@ def pcr_protocol(
 
     params = EXTENSION_RATES[family]
     result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct)
+
+    # Automatically determine amplicon length if template is provided
+    expected_amplicon_seq = None
+    if template:
+        amp_seq, _, _ = analyze_amplicon(template, fwd, rev)
+        if amp_seq:
+            expected_amplicon_seq = amp_seq
+            if amplicon_length is None:
+                amplicon_length = len(amp_seq)
 
     # Calculate extension time
     if amplicon_length:
@@ -450,6 +463,7 @@ def pcr_protocol(
         "ta": result_ta,
         "dmso_pct": dmso_pct,
         "amplicon_length": amplicon_length,
+        "amplicon_sequence": expected_amplicon_seq,
         "extension_rate_s_per_kb": params["rate_s_per_kb"],
         "num_cycles": num_cycles,
         "cycling": cycling,
