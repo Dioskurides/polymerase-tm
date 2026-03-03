@@ -205,8 +205,8 @@ polymerase-tm --dmso-check --template plasmid.gbk FWD_SEQ REV_SEQ
 # Generate PCR Cycler Protocol & Virtual Agarose Gel Plot
 polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.gbk --plot-gel out_gel.png
 
-# Generate a standalone virtual gel with multiple custom fragments and a 100bp ladder
-polymerase-tm --plot-gel out_multi.png --ladder 100bp --plot-gel-sizes 150 200 400
+# Generate a standalone virtual gel with multiple custom fragments and a 10kb ladder
+polymerase-tm --plot-gel out_multi.png --ladder 10kb --plot-gel-sizes 150 200 400
 
 # Simulate a custom gel run (e.g. 1.5% agarose, 110V, 90 minutes, 15cm gel)
 polymerase-tm --plot-gel custom_physics.png --ladder 1kb_plus --plot-gel-sizes 1500 3000 --agarose 1.5 --voltage 110 --time 90 --gel-length 15.0

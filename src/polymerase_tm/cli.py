@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--ladder",
         default="1kb_plus",
-        choices=["1kb_plus", "1kb", "100bp", "50bp", "low_mw", "pcr_marker"],
+        choices=["1kb_plus", "1kb", "100bp", "50bp", "low_mw", "pcr_marker", "10kb"],
         help="Choose the DNA ladder for the virtual gel. Default: 1kb_plus",
     )
     parser.add_argument(
