@@ -168,7 +168,7 @@ polymerase-tm --version
 | `list_polymerases()` | List all 22 supported polymerases |
 | `primer_dimer(fwd, rev)` | Check 3' complementarity / dimer risk |
 | `gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)` | Design Gibson/HiFi Assembly primers |
-| `restriction_scan(seq, enzymes)` | Scan for restriction sites (14 default enzymes) |
+| `restriction_scan(seq, enzymes)` | Scan for restriction sites (~120 NEB enzymes, accepts name list or dict) |
 | `primer_quality(seq)` | Quality score 0-100 with issues list |
 | `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
 | `gc_content(seq)` | GC content as fraction |
