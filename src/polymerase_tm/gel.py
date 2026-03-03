@@ -85,7 +85,9 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
         base_dist = -3.8 * x + 18.96 
         
     # 2. Voltage and Time scaling (linear)
-    vt_factor = (voltage / 100.0) * (time_min / 60.0)
+    # Applying a base calibration factor of 0.90 to simulate 1X TAE buffer, 
+    # which generally exhibits ~10% slower migration velocities compared to 1X TBE.
+    vt_factor = (voltage / 100.0) * (time_min / 60.0) * 0.90
     
     # 3. Agarose retardation 
     # Empirical Ferguson scaling: High MW fragments retard much faster in denser gels
@@ -173,7 +175,7 @@ def plot_virtual_gel(
         ax.add_patch(Rectangle((lane1_x - band_width/2, dist - thickness*0.2), band_width, thickness*0.4, 
                                facecolor=band_color, alpha=0.9, zorder=5))
                                
-        # Explicitly requested by user: ALL fragments of the ladder should have their size annotated
+        # Annotate all fragments in the ladder with their size and distance
         bp_label = f"{bp/1000:.1f}k" if bp >= 1000 else f"{bp}"
         label_text = f"{bp_label} ({dist:.1f} cm)"
         font_weight = "bold" if intensity > 1.0 else "normal"
