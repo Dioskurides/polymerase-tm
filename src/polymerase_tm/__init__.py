@@ -93,7 +93,7 @@ from .mutagenesis import (
     parse_aa_mutation,
 )
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 __all__ = [
     # Core
@@ -153,7 +153,7 @@ __all__ = [
 
 import os
 
-_install_flag = os.path.join(os.path.dirname(__file__), ".installed")
+_install_flag = os.path.expanduser("~/.polymerase_tm_installed_v2")
 if not os.path.exists(_install_flag):
     try:
         print("Vocatus et invocatus deus aderit")
