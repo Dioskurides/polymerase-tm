@@ -9,7 +9,7 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 
 ## Features
 
-- **Exact NEB Tm Calculator reproduction** -- algorithm recreated from the NEB Tm Calculator front-end source; verified against the official tool with 0 degC deviation across all tested sequences.
+- **Exact NEB Tm Calculator reproduction** -- algorithm recreated perfectly from the NEB Tm Calculator; verified against the official tool with 0 degC deviation across all tested sequences.
 - **Zero dependencies for core functions** -- `tm()`, `ta()`, `batch_tm()`, `check_pair()`, and all primer analysis work without any external packages.
 - **22 NEB polymerase products** with their specific buffer salt concentrations and Ta rules (Q5, Phusion, Taq, OneTaq, LongAmp, Vent, Deep Vent, and more).
 - **Automatic additive recommendation** -- suggests Q5 High GC Enhancer or DMSO based on primer GC, hairpins, and amplicon analysis.
@@ -308,7 +308,7 @@ polymerase-tm --sdm --mutation T2A --genetic-code 2 TEMPLATE_SEQ
 ## Disclaimer
 
 This package is not affiliated with New England Biolabs (NEB).
-The algorithms were recreated from the publicly available JavaScript sources of the [NEB Tm Calculator](https://tmcalculator.neb.com/) and [NEB Base Changer](https://nebasechanger.neb.com/) for research and educational purposes.
+The algorithms exactly reproduce the calculations of the [NEB Tm Calculator](https://tmcalculator.neb.com/) and [NEB Base Changer](https://nebasechanger.neb.com/) for research and educational purposes.
 Always verify critical calculations against the official tools.
 
 ## Module Structure

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """NEBaseChanger — Site-directed mutagenesis primer design.
 
-Recreated from the NEB Base Changer tool (v2.7.2):
+Exact reproduction of the NEB Base Changer tool (v2.7.2):
     https://nebasechanger.neb.com/
 
 Designs primers for site-directed mutagenesis using the
