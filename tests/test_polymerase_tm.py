@@ -526,4 +526,4 @@ class TestTouchdownProtocol:
 class TestVersion:
     def test_version_is_1_0(self):
         from polymerase_tm import __version__
-        assert __version__ == "1.0.3"
+        assert __version__ == "2.0.0"

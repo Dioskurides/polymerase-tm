@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Command-line interface for polymerase-tm."""
 
 from __future__ import annotations
@@ -44,13 +45,23 @@ examples:
     polymerase-tm --list
     polymerase-tm --list-buffers
 
+  Site-directed mutagenesis (NEB Base Changer):
+    polymerase-tm --sdm --mutation M1A ATGACCATGATTACG...
+    polymerase-tm --sdm --mutation "T2A K5R" --codon-mode parsimony TEMPLATE_SEQ
+    polymerase-tm --sdm --mode del --mutation 10:3 TEMPLATE_SEQ
+    polymerase-tm --sdm --mode ins --mutation 10:AAAAAA TEMPLATE_SEQ
+    polymerase-tm --sdm --mutation T2A --genetic-code 2 TEMPLATE_SEQ
+
 algorithm:
-  Tm:  SantaLucia (1998) nearest-neighbor + Owczarzy (2004) salt correction
+  Tm:  SantaLucia (1998) nearest-neighbor + Owczarzy (2004/2008) salt correction
   Ta:  Polymerase-specific rules (e.g. Q5: min(Tm1,Tm2)+1, cap 72 degC)
+  SDM: Owczarzy (2008) bivariate salt correction (Na+ + Mg2+)
   DMSO: -0.6 degC per 1%% (v/v)
 
   Verified against the official NEB Tm Calculator with 0 degC deviation.
+  SDM algorithm from NEB Base Changer v2.7.2.
   https://tmcalculator.neb.com/
+  https://nebasechanger.neb.com/
 """
 
 
@@ -59,24 +70,21 @@ def main(argv: list[str] | None = None) -> None:
         prog="polymerase-tm",
         description=(
             "Compute primer Tm/Ta for 22 NEB polymerases, plus primer dimer check, "
-            "restriction site scan (~120 NEB enzymes), quality scoring, and "
-            "Gibson Assembly overlap design. Reproduces the NEB Tm Calculator "
-            "(SantaLucia 1998 + Owczarzy 2004) with polymerase-specific buffer "
+            "restriction site scan (~120 NEB enzymes), quality scoring, "
+            "Gibson Assembly overlap design, and site-directed mutagenesis (SDM) "
+            "primer design (NEB Base Changer v2.7.2). Reproduces the NEB Tm Calculator "
+            "(SantaLucia 1998 + Owczarzy 2004/2008) with polymerase-specific buffer "
             "conditions and Ta rules."
         ),
         epilog=EXAMPLES,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    # File input for template is documented on the positional argument itself
     parser.add_argument(
         "primers",
-        nargs="*",
-        metavar="SEQUENCE",
-        help=(
-            "One or two DNA primer sequences. Use the binding region only "
-            "(no Gibson/overlap overhangs). With one sequence, only Tm is "
-            "calculated. With two, both Tm values and the recommended Ta "
-            "are shown."
-        ),
+        nargs="+",
+        help="Standard mode: FWD_SEQ REV_SEQ [TEMPLATE_SEQ]. "
+             "SDM mode: TEMPLATE_SEQ (can be a raw sequence, or path to a .gb/gbk/.fasta file).",
     )
     parser.add_argument(
         "-p", "--polymerase",
@@ -206,6 +214,67 @@ def main(argv: list[str] | None = None) -> None:
         dest="list_buffers",
         help="List all 17 NEB buffers with their effective salt concentrations.",
     )
+
+    # --- SDM (mutagenesis) arguments ---
+    sdm_group = parser.add_argument_group(
+        "site-directed mutagenesis (NEB Base Changer)"
+    )
+    sdm_group.add_argument(
+        "--sdm",
+        action="store_true",
+        help="Run NEB Base Changer site-directed mutagenesis (SDM) primer design. "
+             "Automatically supports circular and linear templates, and reads .gb/.fasta files.",
+    )
+    sdm_group.add_argument(
+        "--mutation",
+        default=None,
+        metavar="MUT",
+        help=(
+            "Mutation specification. For --mode point: 'M1A', 'K2R:CGC', or "
+            "'T2A K5R' (multiple). For --mode sub: 'POS:SEQ[:LEN]' e.g. '10:GGG'. "
+            "For --mode del: 'POS:LEN' e.g. '10:3'. "
+            "For --mode ins: 'POS:SEQ' e.g. '10:AAAAAA'."
+        ),
+    )
+    sdm_group.add_argument(
+        "--mode",
+        choices=["point", "sub", "del", "ins"],
+        default="point",
+        help="SDM mutation type. Default: point (amino acid).",
+    )
+    sdm_group.add_argument(
+        "--orf-start",
+        type=int,
+        default=1,
+        metavar="POS",
+        help="1-based ORF start position in the template. Default: 1.",
+    )
+    sdm_group.add_argument(
+        "--codon-mode",
+        choices=["usage", "parsimony"],
+        default="usage",
+        help="Codon selection strategy. 'usage' = E.coli optimal, 'parsimony' = fewest changes. Default: usage.",
+    )
+    sdm_group.add_argument(
+        "--genetic-code",
+        type=int,
+        default=1,
+        metavar="ID",
+        help="NCBI genetic code ID (1-14). Default: 1 (Standard). Use 2 for vertebrate mitochondrial, etc.",
+    )
+    sdm_group.add_argument(
+        "--confine-to-tails",
+        action="store_true",
+        help="Place mutations at the 5' non-annealing tails of primers.",
+    )
+    sdm_group.add_argument(
+        "--linear",
+        action="store_true",
+        help="Treat the template as a linear sequence for SDM primer design. "
+             "By default, templates are treated as circular plasmids so primers "
+             "can wrap around the ends.",
+    )
+
     from polymerase_tm import __version__  # type: ignore
     parser.add_argument(
         "--version",
@@ -214,6 +283,11 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     args = parser.parse_args(argv)
+
+    # --- Handle SDM mode ---
+    if args.sdm:
+        _handle_sdm(args)
+        return
 
     from polymerase_tm import (  # type: ignore
         tm,
@@ -416,6 +490,131 @@ def main(argv: list[str] | None = None) -> None:
                 template_file=args.template,
             )
             print_dmso_report(report)
+
+
+def _handle_sdm(args):
+    """Handle site-directed mutagenesis primer design."""
+    import os
+    from polymerase_tm import BaseChanger  # type: ignore
+
+    if not args.primers:
+        print("\n  [ERROR] SDM requires a template DNA sequence or file (.gb/.gbk/.fasta/.fa) as positional argument.\n")
+        sys.exit(1)
+
+    if not args.mutation:
+        print("\n  [ERROR] SDM requires --mutation specification.\n")
+        sys.exit(1)
+
+    raw_input = args.primers[0].strip()
+    circular = not args.linear  # default True
+    topology_source = "default (circular)"
+
+    # Detect file input
+    if os.path.isfile(raw_input):
+        ext = os.path.splitext(raw_input)[1].lower()
+        if ext in (".gb", ".gbk", ".genbank"):
+            try:
+                from Bio import SeqIO  # type: ignore
+                record = SeqIO.read(raw_input, "genbank")
+                template = str(record.seq).upper()
+                topo = record.annotations.get("topology", "circular")
+                circular = (topo == "circular") and not args.linear
+                topology_source = f"{os.path.basename(raw_input)} ({topo})"
+            except ImportError:
+                print("\n  [ERROR] Biopython required for GenBank files: pip install biopython\n")
+                sys.exit(1)
+            except Exception as e:
+                print(f"\n  [ERROR] Could not read GenBank file: {e}\n")
+                sys.exit(1)
+        elif ext in (".fasta", ".fa", ".fna"):
+            try:
+                from Bio import SeqIO  # type: ignore
+                record = SeqIO.read(raw_input, "fasta")
+                template = str(record.seq).upper()
+                topology_source = f"{os.path.basename(raw_input)} (FASTA, {'circular' if circular else 'linear'})"
+            except ImportError:
+                # Fallback: read FASTA without Biopython
+                with open(raw_input) as fh:
+                    lines = fh.readlines()
+                template = "".join(l.strip() for l in lines if not l.startswith(">")).upper()
+                topology_source = f"{os.path.basename(raw_input)} (FASTA, {'circular' if circular else 'linear'})"
+            except Exception as e:
+                print(f"\n  [ERROR] Could not read FASTA file: {e}\n")
+                sys.exit(1)
+        else:
+            print(f"\n  [ERROR] Unsupported file type '{ext}'. Use .gb, .gbk, .fasta, or .fa\n")
+            sys.exit(1)
+    else:
+        # Raw sequence on command line
+        template = raw_input.upper()
+        if args.linear:
+            circular = False
+            topology_source = "linear (--linear flag)"
+
+    bc = BaseChanger(
+        template,
+        orf_start=args.orf_start,
+        genetic_code=args.genetic_code,
+        circular=circular,
+        codon_mode=args.codon_mode,
+        confine_to_tails=args.confine_to_tails,
+        dmso_pct=args.dmso,
+    )
+
+    mode = args.mode
+    mutation_str = args.mutation
+
+    try:
+        if mode == "point":
+            result = bc.point_mutation(mutation_str)
+            results = result if isinstance(result, list) else [result]
+        elif mode == "sub":
+            parts = mutation_str.split(":")
+            pos = int(parts[0])
+            repl = parts[1]
+            length = int(parts[2]) if len(parts) > 2 else len(repl)
+            results = [bc.substitution(pos, repl, length)]
+        elif mode == "del":
+            parts = mutation_str.split(":")
+            pos = int(parts[0])
+            length = int(parts[1])
+            results = [bc.deletion(pos, length)]
+        elif mode == "ins":
+            parts = mutation_str.split(":")
+            pos = int(parts[0])
+            insert = parts[1]
+            results = [bc.insertion(pos, insert)]
+        else:
+            print(f"\n  [ERROR] Unknown mode: {mode}\n")
+            sys.exit(1)
+    except ValueError as e:
+        print(f"\n  [ERROR] {e}\n")
+        sys.exit(1)
+
+    topo_str = "circular" if circular else "linear"
+    print(f"\n  [NEBaseChanger v2.7.2] Site-Directed Mutagenesis Primer Design")
+    print(f"  Template: {len(template)} nt ({topo_str})")
+    print(f"  Source: {topology_source}")
+    print(f"  ORF start: {args.orf_start}")
+    print(f"  Genetic code: {args.genetic_code}")
+    print(f"  Codon mode: {args.codon_mode}")
+    print()
+
+    for r in results:
+        print(f"  {'=' * 72}")
+        print(f"  {r.description}")
+        if r.original_codon and r.new_codon:
+            print(f"  Codon: {r.original_codon} -> {r.new_codon}")
+        print()
+        print(f"  {'Primer':<6} {'Sequence':<50} {'Len':>4}  {'Tm':>4}  {'GC':>4}")
+        print(f"  {'-' * 72}")
+        for p in [r.forward, r.reverse]:
+            print(f"  {p.direction:<6} {p.sequence:<50} {p.length:>4}  {p.tm:>4.0f}  {p.gc_pct:>3.0f}%")
+        print(f"  Ta: {r.ta} degC")
+        if r.warnings:
+            for w in r.warnings:
+                print(f"  [WARNING] {w}")
+        print()
 
 
 if __name__ == "__main__":

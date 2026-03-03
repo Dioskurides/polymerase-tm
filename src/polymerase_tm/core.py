@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Core Tm/Ta calculation functions.
 
 Implements the SantaLucia (1998) nearest-neighbor model with
@@ -9,7 +10,10 @@ from __future__ import annotations
 import math
 from typing import Optional
 
-from .constants import NN_PARAMS, TERMINAL, R, BUFFERS, POLYMERASES
+from .constants import (
+    NN_PARAMS, TERMINAL, R, BUFFERS, POLYMERASES,
+    Q5_SDM_MONO_MM, Q5_SDM_DIVALENT_MM, Q5_SDM_PRIMER_NM,
+)
 
 
 # =====================================================================
@@ -229,3 +233,131 @@ def list_polymerases() -> list[dict]:
             "ta_rule": poly.get("ta_rule", ""),
         })
     return out
+
+
+# =====================================================================
+# Owczarzy et al. (2008) Bivariate Salt Correction
+# Biochemistry 47:5336-53
+#
+# Used by NEBaseChanger for Mg²⁺-aware Tm calculations.
+# Existing owczarzy_correction() (monovalent-only) is unchanged.
+# =====================================================================
+
+def owczarzy_bivariate(
+    tm_raw: float,
+    seq: str,
+    mono_mM: float = Q5_SDM_MONO_MM,
+    divalent_mM: float = Q5_SDM_DIVALENT_MM,
+) -> float:
+    """Owczarzy et al. (2008) bivariate salt correction (Na⁺ + Mg²⁺).
+
+    Parameters
+    ----------
+    tm_raw : float
+        Raw Tm from ``calc_nn_raw`` (1 M reference state).
+    seq : str
+        Primer sequence (for GC fraction calculation).
+    mono_mM : float
+        Monovalent cation concentration in mM. Default 50 mM (Q5 SDM).
+    divalent_mM : float
+        Divalent cation (Mg²⁺) concentration in mM. Default 2 mM.
+
+    Returns
+    -------
+    float
+        Salt-corrected Tm in degrees Celsius.
+    """
+    seq = seq.upper()
+    N = len(seq)
+    fgc = (seq.count("G") + seq.count("C")) / N
+
+    mono_M = mono_mM / 1000.0
+    dival_M = divalent_mM / 1000.0
+
+    # If no divalent, fall back to monovalent-only correction
+    if dival_M <= 0:
+        return owczarzy_correction(tm_raw, seq, mono_mM)
+
+    # Ratio R = sqrt(Mg²⁺) / [Na⁺]
+    R_ratio = math.sqrt(dival_M) / mono_M if mono_M > 0 else 999.0
+
+    inv_tm_raw = 1.0 / (tm_raw + 273.15)
+    ln_mono = math.log(mono_M)
+    ln_dival = math.log(dival_M)
+
+    if R_ratio < 0.22:
+        # Regime 1: monovalent-ion dominated
+        corr = (4.29e-5 * fgc - 3.95e-5) * ln_mono + 9.40e-6 * ln_mono ** 2
+        return 1.0 / (inv_tm_raw + corr) - 273.15
+
+    elif R_ratio < 6.0:
+        # Regime 2: bivariate — mixed mono+divalent
+        # Coefficients from Owczarzy 2008 Table 4
+        a = 3.92e-5
+        b = -9.11e-6
+        c = 6.26e-5
+        d = 1.42e-5
+        e = -4.82e-4
+        f = 5.25e-4
+        g = 8.31e-5
+
+        corr = (
+            a
+            + b * ln_dival
+            + fgc * (c + d * ln_dival)
+            + (1.0 / (2.0 * (N - 1))) * (e + f * ln_dival + g * ln_dival ** 2)
+        )
+        return 1.0 / (inv_tm_raw + corr) - 273.15
+
+    else:
+        # Regime 3: divalent-ion dominated
+        a = 3.92e-5
+        b = -9.11e-6
+        c = 6.26e-5
+        d = 1.42e-5
+        e = -4.82e-4
+        f = 5.25e-4
+        g = 8.31e-5
+
+        corr = (
+            a
+            + b * ln_dival
+            + fgc * (c + d * ln_dival)
+            + (1.0 / (2.0 * (N - 1))) * (e + f * ln_dival + g * ln_dival ** 2)
+        )
+        return 1.0 / (inv_tm_raw + corr) - 273.15
+
+
+def calc_sdm_tm(
+    seq: str,
+    mono_mM: float = Q5_SDM_MONO_MM,
+    divalent_mM: float = Q5_SDM_DIVALENT_MM,
+    primer_conc_nM: float = Q5_SDM_PRIMER_NM,
+    dmso_pct: float = 0.0,
+) -> float:
+    """Calculate Tm for a primer under Q5 SDM conditions.
+
+    Uses SantaLucia NN model + Owczarzy 2008 bivariate salt correction.
+    This is the Tm model used by the NEB Base Changer tool.
+
+    Parameters
+    ----------
+    seq : str
+        Primer annealing sequence (A/T/G/C only).
+    mono_mM : float
+        Monovalent salt in mM. Default 50 mM.
+    divalent_mM : float
+        Divalent salt (Mg²⁺) in mM. Default 2.0 mM.
+    primer_conc_nM : float
+        Primer concentration in nM. Default 500 nM.
+    dmso_pct : float
+        DMSO percentage. Correction: -0.6 °C per 1%.
+
+    Returns
+    -------
+    float
+        Tm in degrees Celsius (not rounded).
+    """
+    raw = calc_nn_raw(seq, primer_conc_nM)
+    corrected = owczarzy_bivariate(raw, seq, mono_mM, divalent_mM)
+    return corrected - 0.6 * dmso_pct
