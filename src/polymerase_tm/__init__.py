@@ -274,8 +274,46 @@ def owczarzy_correction(tm_raw: float, seq: str, salt_mM: float) -> float:
     return 1.0 / (1.0 / (tm_raw + 273.15) + corr) - 273.15
 
 
-def tm(seq: str, polymerase: str = "q5") -> int:
-    """Calculate Tm for a primer sequence with a given NEB polymerase.
+def _resolve_salt(polymerase: str, buffer: "Optional[str]" = None, salt_mM: "Optional[int]" = None) -> int:
+    """Resolve the effective salt concentration from the given parameters."""
+    if salt_mM is not None:
+        return salt_mM
+    if buffer is not None:
+        key = buffer.lower().replace(" ", "_").replace("-", "_")
+        if key not in BUFFERS:
+            avail = ", ".join(sorted(BUFFERS.keys()))
+            raise ValueError(
+                f"Unknown buffer '{buffer}'. Available buffers: {avail}"
+            )
+        return BUFFERS[key]
+    poly = POLYMERASES[polymerase]
+    return BUFFERS[poly["buffer"]]
+
+
+def list_buffers() -> list[dict]:
+    """Return all available NEB buffer names and their salt concentrations.
+
+    Returns
+    -------
+    list[dict]
+        Each dict has keys: ``name``, ``salt_mM``.
+
+    Examples
+    --------
+    >>> from polymerase_tm import list_buffers
+    >>> for b in list_buffers():
+    ...     print(f"{b['name']:20s} {b['salt_mM']:>4d} mM")
+    """
+    return [{"name": k, "salt_mM": v} for k, v in sorted(BUFFERS.items())]
+
+
+def tm(
+    seq: str,
+    polymerase: str = "q5",
+    buffer: "Optional[str]" = None,
+    salt_mM: "Optional[int]" = None,
+) -> int:
+    """Calculate Tm for a primer sequence.
 
     Parameters
     ----------
@@ -283,14 +321,26 @@ def tm(seq: str, polymerase: str = "q5") -> int:
         Primer binding sequence (A/T/G/C only, no overhangs).
     polymerase : str
         Key into ``POLYMERASES``. Default ``"q5"``.
+    buffer : str, optional
+        NEB buffer name to override the polymerase default.
+        Use ``list_buffers()`` to see all 15 available buffers.
+    salt_mM : int, optional
+        Direct salt concentration (mM) override. Takes priority
+        over both ``polymerase`` and ``buffer``.
 
     Returns
     -------
     int
         Melting temperature rounded to the nearest integer (degC).
+
+    Examples
+    --------
+    >>> tm("ATCGATCGATCG")                    # Q5 default
+    >>> tm("ATCGATCGATCG", buffer="thermopol") # Thermopol buffer
+    >>> tm("ATCGATCGATCG", salt_mM=50)         # custom 50 mM
     """
     poly = POLYMERASES[polymerase]
-    salt = BUFFERS[poly["buffer"]]
+    salt = _resolve_salt(polymerase, buffer, salt_mM)
     conc = poly["conc"]
     raw = calc_nn_raw(seq, conc)
     return round(owczarzy_correction(raw, seq, salt))
@@ -301,6 +351,8 @@ def ta(
     seq2: str,
     polymerase: str = "q5",
     dmso_pct: float = 0,
+    buffer: "Optional[str]" = None,
+    salt_mM: "Optional[int]" = None,
 ) -> tuple[int, int, int]:
     """Calculate the recommended annealing temperature for a primer pair.
 
@@ -312,14 +364,18 @@ def ta(
         Key into ``POLYMERASES``.
     dmso_pct : float
         DMSO percentage (v/v). Correction: -0.6 degC per 1 %.
+    buffer : str, optional
+        NEB buffer name to override the polymerase default.
+    salt_mM : int, optional
+        Direct salt concentration (mM) override.
 
     Returns
     -------
     (Ta, Tm1, Tm2) : tuple[int, int, int]
         Recommended annealing temperature, Tm of seq1, Tm of seq2.
     """
-    t1 = tm(seq1, polymerase)
-    t2 = tm(seq2, polymerase)
+    t1 = tm(seq1, polymerase, buffer=buffer, salt_mM=salt_mM)
+    t2 = tm(seq2, polymerase, buffer=buffer, salt_mM=salt_mM)
     poly = POLYMERASES[polymerase]
     min_tm = min(t1, t2)
     min_len = min(len(seq1.strip()), len(seq2.strip()))
