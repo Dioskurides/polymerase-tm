@@ -237,6 +237,19 @@ class TestRestrictionScan:
         assert len(hits) >= 1
         assert hits[0]["enzyme"] == "TestEnzyme"
 
+    def test_enzyme_names_list(self):
+        hits = restriction_scan("ATGAATTCGATCG", enzymes=["EcoRI"])
+        assert len(hits) >= 1
+        assert hits[0]["enzyme"] == "EcoRI"
+
+    def test_enzyme_names_case_insensitive(self):
+        hits = restriction_scan("ATGAATTCGATCG", enzymes=["ecori"])
+        assert len(hits) >= 1
+
+    def test_unknown_enzyme_raises(self):
+        with pytest.raises(ValueError, match="Unknown enzyme"):
+            restriction_scan("ATCG", enzymes=["FakeEnzyme123"])
+
 
 class TestPrimerQuality:
     def test_good_primer(self):

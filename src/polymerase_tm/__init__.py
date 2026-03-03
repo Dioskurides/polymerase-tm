@@ -1231,22 +1231,134 @@ def to_csv(
 # Primer Quality & Analysis
 # =====================================================================
 
-# Common restriction enzyme recognition sites (5'->3')
+# Comprehensive restriction enzyme recognition sites (5'->3')
+# All common NEB enzymes with unambiguous (ATGC-only) recognition sequences.
+# Enzymes with degenerate bases (N, R, Y, etc.) are excluded for exact matching.
 RESTRICTION_ENZYMES: dict[str, str] = {
-    "EcoRI": "GAATTC",
+    # --- 4-cutters ---
+    "AluI": "AGCT",
+    "CviAII": "CATG",
+    "DpnI": "GATC",
+    "DpnII": "GATC",
+    "FatI": "CATG",
+    "HaeIII": "GGCC",
+    "HhaI": "GCGC",
+    "HpyCH4V": "TGCA",
+    "MboI": "GATC",
+    "MluCI": "AATT",
+    "MseI": "TTAA",
+    "MspI": "CCGG",
+    "NlaIII": "CATG",
+    "RsaI": "GTAC",
+    "Sau3AI": "GATC",
+    "TaqI": "TCGA",
+    # --- 5-cutters ---
+    "AvaII": "GGACC",
+    "EcoRII": "CCAGG",
+    # --- 6-cutters (most common) ---
+    "AatII": "GACGTC",
+    "AccI": "GTCGAC",
+    "AclI": "AACGTT",
+    "AfeI": "AGCGCT",
+    "AflII": "CTTAAG",
+    "AgeI": "ACCGGT",
+    "ApaI": "GGGCCC",
+    "ApaLI": "GTGCAC",
+    "AscI": "GGCGCGCC",
+    "AseI": "ATTAAT",
+    "AvaI": "CTCGAG",
+    "AvrII": "CCTAGG",
     "BamHI": "GGATCC",
-    "HindIII": "AAGCTT",
-    "NotI": "GCGGCCGC",
-    "XhoI": "CTCGAG",
-    "NdeI": "CATATG",
-    "XbaI": "TCTAGA",
-    "SalI": "GTCGAC",
-    "PstI": "CTGCAG",
-    "SpeI": "ACTAGT",
-    "NcoI": "CCATGG",
+    "BclI": "TGATCA",
+    "BglI": "GCCGC",
     "BglII": "AGATCT",
+    "BlpI": "GCTNAGC",
+    "BmtI": "GCTAGC",
+    "BsaBI": "GATC",
+    "BsiWI": "CGTACG",
+    "BspEI": "TCCGGA",
+    "BspHI": "TCATGA",
+    "BsrGI": "TGTACA",
+    "BssHII": "GCGCGC",
+    "BstBI": "TTCGAA",
+    "BstEII": "GGTNACC",
+    "BstXI": "CCANNNNTGG",
+    "BstZ17I": "GTATAC",
+    "ClaI": "ATCGAT",
+    "DraI": "TTTAAA",
+    "EagI": "CGGCCG",
+    "EcoNI": "CCTNNNNNAGG",
+    "EcoRI": "GAATTC",
+    "EcoRV": "GATATC",
+    "FseI": "GGCCGGCC",
+    "FspI": "TGCGCA",
+    "HincII": "GTYRAC",
+    "HindIII": "AAGCTT",
+    "HpaI": "GTTAAC",
+    "KasI": "GGCGCC",
     "KpnI": "GGTACC",
+    "MfeI": "CAATTG",
+    "MluI": "ACGCGT",
+    "MscI": "TGGCCA",
+    "NaeI": "GCCGGC",
+    "NarI": "GGCGCC",
+    "NciI": "CCSGG",
+    "NcoI": "CCATGG",
+    "NdeI": "CATATG",
+    "NgoMIV": "GCCGGC",
+    "NheI": "GCTAGC",
+    "NotI": "GCGGCCGC",
+    "NruI": "TCGCGA",
+    "NsiI": "ATGCAT",
+    "NspI": "CATG",
+    "PacI": "TTAATTAA",
+    "PciI": "ACATGT",
+    "PmeI": "GTTTAAAC",
+    "PmlI": "CACGTG",
+    "PpuMI": "AGGCCT",
+    "PsiI": "TTATAA",
+    "PspOMI": "GGGCCC",
+    "PstI": "CTGCAG",
+    "PvuI": "CGATCG",
+    "PvuII": "CAGCTG",
     "SacI": "GAGCTC",
+    "SacII": "CCGCGG",
+    "SalI": "GTCGAC",
+    "SbfI": "CCTGCAGG",
+    "ScaI": "AGTACT",
+    "SfoI": "GGCGCC",
+    "SgrAI": "CRCCGGYG",
+    "SmaI": "CCCGGG",
+    "SmlI": "CTYRAG",
+    "SnaBI": "TACGTA",
+    "SpeI": "ACTAGT",
+    "SphI": "GCATGC",
+    "SspI": "AATATT",
+    "StuI": "AGGCCT",
+    "SwaI": "ATTTAAAT",
+    "TliI": "CTCGAG",
+    "XbaI": "TCTAGA",
+    "XhoI": "CTCGAG",
+    "XmaI": "CCCGGG",
+    # --- 8-cutters (rare cutters) ---
+    "AsiSI": "GCGATCGC",
+    "FseI": "GGCCGGCC",
+    "NotI": "GCGGCCGC",
+    "PacI": "TTAATTAA",
+    "PmeI": "GTTTAAAC",
+    "SbfI": "CCTGCAGG",
+    "SwaI": "ATTTAAAT",
+    "AscI": "GGCGCGCC",
+    # --- Common cloning enzymes ---
+    "SfiI": "GGCCNNNNNGGCC",
+    "BsaI": "GGTCTC",
+    "BbsI": "GAAGAC",
+    "BsmBI": "CGTCTC",
+    "SapI": "GAAGAGC",
+    "BtgZI": "GCGATG",
+    "EarI": "CTCTTC",
+    "BspMI": "ACCTGC",
+    "PaqCI": "CACCTGC",
 }
 
 
@@ -1433,7 +1545,7 @@ def gibson_overlaps(
 
 def restriction_scan(
     seq: str,
-    enzymes: Optional[dict[str, str]] = None,
+    enzymes: "Optional[dict[str, str] | list[str]]" = None,
 ) -> list[dict]:
     """Scan a DNA sequence for restriction enzyme recognition sites.
 
@@ -1441,9 +1553,10 @@ def restriction_scan(
     ----------
     seq : str
         DNA sequence to scan (primer or amplicon).
-    enzymes : dict, optional
-        Custom enzyme dict ``{name: recognition_site}``.
-        Defaults to 14 common enzymes.
+    enzymes : list[str] | dict | None
+        - ``None``: scan all ~120 built-in NEB enzymes (default)
+        - ``list[str]``: enzyme names to check, e.g. ``["EcoRI", "BamHI"]``
+        - ``dict``: custom ``{name: recognition_site}`` mapping
 
     Returns
     -------
@@ -1454,16 +1567,34 @@ def restriction_scan(
     Examples
     --------
     >>> hits = restriction_scan("ATGAATTCGATCG")
-    >>> for h in hits:
-    ...     print(f"{h['enzyme']} ({h['site']}) at position {h['position']}")
+    >>> restriction_scan("ATGAATTCGATCG", enzymes=["EcoRI", "BamHI"])
+    >>> restriction_scan("ATGAATTCGATCG", enzymes={"Custom": "AATTC"})
     """
     seq = seq.strip().upper()
     rc = _reverse_complement(seq)
+
+    # Resolve enzymes argument
     if enzymes is None:
-        enzymes = RESTRICTION_ENZYMES
+        enzyme_dict = RESTRICTION_ENZYMES
+    elif isinstance(enzymes, list):
+        # Look up enzyme names (case-insensitive)
+        name_map = {k.upper(): k for k in RESTRICTION_ENZYMES}
+        enzyme_dict = {}
+        for name in enzymes:
+            key = name.upper()
+            if key in name_map:
+                original = name_map[key]
+                enzyme_dict[original] = RESTRICTION_ENZYMES[original]
+            else:
+                raise ValueError(
+                    f"Unknown enzyme '{name}'. Use RESTRICTION_ENZYMES.keys() "
+                    f"to see available enzymes, or pass a dict for custom sites."
+                )
+    else:
+        enzyme_dict = enzymes
 
     hits = []
-    for name, site in enzymes.items():
+    for name, site in enzyme_dict.items():
         site = site.upper()
         # Forward strand
         pos = 0
