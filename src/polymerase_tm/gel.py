@@ -7,8 +7,8 @@ and the predicted amplicon size(s) using matplotlib and seaborn.
 
 from __future__ import annotations
 
-import os
-from typing import Dict, List, Optional, Tuple, Union
+import math
+from typing import Optional, Union
 
 try:
     import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ except ImportError:
 
 
 # Standard NEB DNA Ladders (Size in bp, relative intensity for visual thickness)
-LADDERS: Dict[str, List[Tuple[int, float]]] = {
+LADDERS: dict[str, list[tuple[int, float]]] = {
     "1kb_plus": [
         (10000, 1.0), (8000, 1.0), (6000, 1.0), (5000, 1.0), (4000, 1.0),
         (3000, 3.0), (2000, 1.0), (1500, 1.0), (1200, 1.0), (1000, 3.0),
@@ -72,23 +72,23 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
     time_min = max(1.0, time_min)
     
     # 1. Base migration at 1.0% agarose, 100V, 60min
-    x = np.log10(bp)
+    x = math.log10(bp)
     
     # Adjusted empirical map based strictly on NEB 1kb+ reference migration 
     # in 1X TAE (100V, 60min) to guarantee flawless relative band spacing.
-    empirical_log_bps = np.array([
-        4.000, 3.903, 3.778, 3.699, 3.602, 3.477, 3.301, 3.176, 3.079, 
-        3.000, 2.954, 2.903, 2.845, 2.778, 2.699, 2.602, 2.477, 2.301, 
-        2.000, 1.699, 1.398
-    ])[::-1]
+    empirical_log_bps = [
+        1.398, 1.699, 2.000, 2.301, 2.477, 2.602, 2.699, 2.778, 2.845,
+        2.903, 2.954, 3.000, 3.079, 3.176, 3.301, 3.477, 3.602, 3.699,
+        3.778, 3.903, 4.000,
+    ]
     
-    empirical_cms = np.array([
-        1.20, 1.45, 1.75, 1.95, 2.25, 2.65, 3.25, 3.75, 4.15, 
-        4.50, 4.65, 4.85, 5.05, 5.30, 5.60, 6.00, 6.50, 7.30, 
-        8.50, 9.30, 9.60
-    ])[::-1]
+    empirical_cms = [
+        9.60, 9.30, 8.50, 7.30, 6.50, 6.00, 5.60, 5.30, 5.05,
+        4.85, 4.65, 4.50, 4.15, 3.75, 3.25, 2.65, 2.25, 1.95,
+        1.75, 1.45, 1.20,
+    ]
     
-    base_dist = np.interp(x, empirical_log_bps, empirical_cms)
+    base_dist = _interp(x, empirical_log_bps, empirical_cms)
         
     # 2. Voltage and Time scaling (linear)
     # The base_dist is already perfectly calibrated to 1X TAE 100V 60m.
@@ -97,32 +97,71 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
     # 3. Agarose retardation 
     # Empirical Ferguson scaling: High MW fragments retard much faster in denser gels
     c_x = max(0.01, 0.4 * x - 0.5)
-    agarose_factor = np.exp(-c_x * (agarose_pct - 1.0))
+    agarose_factor = math.exp(-c_x * (agarose_pct - 1.0))
     
     distance_cm = base_dist * vt_factor * agarose_factor
     return distance_cm
 
 
+def _interp(x: float, xp: list, fp: list) -> float:
+    """Linear interpolation (pure-Python replacement for np.interp).
+    
+    *xp* must be sorted in ascending order.
+    """
+    if x <= xp[0]:
+        return fp[0]
+    if x >= xp[-1]:
+        return fp[-1]
+    for i in range(len(xp) - 1):
+        if xp[i] <= x <= xp[i + 1]:
+            t = (x - xp[i]) / (xp[i + 1] - xp[i])
+            return fp[i] + t * (fp[i + 1] - fp[i])
+    return fp[-1]
+
+
 def plot_virtual_gel(
-    amplicon_lengths: Union[int, List[int]],
+    amplicon_lengths: Union[int, list[int]],
     ladder_name: str = "1kb_plus",
     output_path: str = "virtual_gel.png",
     agarose_pct: float = 1.0,
     voltage: float = 110.0,
     time_min: float = 60.0,
     gel_length_cm: float = 12.0,
-    amplicon_topologies: Optional[Union[str, List[str]]] = None
+    amplicon_topologies: Optional[Union[str, list[str]]] = None
 ) -> bool:
     """
     Plot a simulated agarose gel with a DNA ladder and the target amplicon(s).
     
-    Args:
-        amplicon_lengths: The size(s) of the expected amplicon(s) in bp.
-        ladder_name: The internal name of the ladder (e.g., '1kb_plus', '100bp').
-        output_path: Where to save the resulting image file.
-        
-    Returns:
-        bool: True if plotting succeeded, False if visualization libs are missing.
+    Parameters
+    ----------
+    amplicon_lengths : int or list[int]
+        The size(s) of the expected amplicon(s) in bp.
+    ladder_name : str
+        The internal name of the ladder (e.g., ``'1kb_plus'``, ``'100bp'``).
+    output_path : str
+        Where to save the resulting image file (default ``'virtual_gel.png'``).
+    agarose_pct : float
+        Agarose percentage (w/v) for gel physics (default 1.0).
+    voltage : float
+        Voltage in V for gel physics (default 110.0).
+    time_min : float
+        Run time in minutes for gel physics (default 60.0).
+    gel_length_cm : float
+        Total gel length in cm (default 12.0).
+    amplicon_topologies : str or list[str], optional
+        Topological conformation(s) of the amplicons. One of
+        ``'linear'``, ``'coiled'`` (supercoiled), or ``'nicked'``.
+        Defaults to ``'linear'`` for all amplicons.
+
+    Returns
+    -------
+    bool
+        True if plotting succeeded.
+
+    Raises
+    ------
+    ImportError
+        If matplotlib / seaborn are not installed.
     """
     if not _HAS_VIZ:
         raise ImportError(

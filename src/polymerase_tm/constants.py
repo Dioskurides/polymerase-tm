@@ -6,8 +6,6 @@ NEB buffer salt concentrations, and polymerase product definitions.
 
 from __future__ import annotations
 
-import math
-
 # =====================================================================
 # Nearest-Neighbor Parameters — SantaLucia 1998, Table 2
 # (dH in kcal/mol, dS in cal/(mol*K))

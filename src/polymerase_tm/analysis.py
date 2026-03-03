@@ -317,7 +317,7 @@ def gibson_overlaps(
     fwd_bind_tm = tm(fwd_bind, polymerase=polymerase)
     rev_bind_tm = tm(rev_bind, polymerase=polymerase)
 
-    # Overlap Tm at 50 nM (typical Gibson concentration)
+    # Overlap Tm using the polymerase's default primer concentration
     fwd_overlap_tm = tm(fwd_overlap, polymerase=polymerase)
     rev_overlap_tm = tm(rev_overlap, polymerase=polymerase)
 
@@ -369,7 +369,6 @@ def restriction_scan(
     >>> restriction_scan("ATGAATTCGATCG", enzymes={"Custom": "AATTC"})
     """
     seq = seq.strip().upper()
-    rc = _reverse_complement(seq)
 
     # Resolve enzymes argument
     if enzymes is None:

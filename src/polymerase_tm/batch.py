@@ -1,7 +1,7 @@
 """Batch processing, automation, and PCR protocol generation.
 
 Contains reverse_complement, batch_tm, optimal_binding_length,
-check_pair, pcr_protocol, from_csv, to_csv, and _additive_recommendation.
+check_pair, pcr_protocol, from_csv, to_csv, and additive_recommendation.
 """
 
 from __future__ import annotations
@@ -335,6 +335,8 @@ def pcr_protocol(
     touchdown: Optional[bool] = None,
     td_step: float = 0.5,
     td_cycles: int = 10,
+    buffer: Optional[str] = None,
+    salt_mM: Optional[int] = None,
 ) -> dict:
     """Generate a complete PCR cycling protocol.
 
@@ -373,6 +375,10 @@ def pcr_protocol(
         Temperature decrement per touchdown cycle (default 0.5 degC).
     td_cycles : int
         Number of touchdown cycles (default 10).
+    buffer : str, optional
+        NEB buffer name to override the polymerase default.
+    salt_mM : int, optional
+        Direct salt concentration (mM) override.
 
     Returns
     -------
@@ -421,7 +427,8 @@ def pcr_protocol(
         family = "taq"
 
     params = EXTENSION_RATES[family]
-    result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct)
+    result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct,
+                           buffer=buffer, salt_mM=salt_mM)
     tm_diff = abs(t1 - t2)
 
     # Automatically determine amplicon length if template is provided
@@ -702,11 +709,13 @@ def to_csv(
         writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=sep)
         writer.writeheader()
         for row in results:
-            # Flatten lists to strings for CSV
+            # Flatten complex types to strings for CSV
             flat = {}
             for k, v in row.items():
                 if isinstance(v, list):
                     flat[k] = "; ".join(str(x) for x in v)
+                elif isinstance(v, dict):
+                    flat[k] = "; ".join(f"{dk}={dv}" for dk, dv in v.items())
                 else:
                     flat[k] = v
             writer.writerow(flat)

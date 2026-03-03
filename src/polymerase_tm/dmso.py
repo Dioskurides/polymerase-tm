@@ -10,7 +10,6 @@ from typing import Optional
 
 # Biopython is optional (only for GenBank template files)
 try:
-    from Bio.Seq import Seq
     from Bio import SeqIO
     _HAS_BIO = True
 except ImportError:
@@ -289,7 +288,7 @@ def dmso_recommendation(
 
     Checks performed
     ----------------
-    1. Primer self-hairpins (stem >= 5 bp, Wallace Tm >= 40 degC).
+    1. Primer self-hairpins (stem >= 5 bp, NN Tm >= 40 degC).
     2. Amplicon overall GC content (> 65 % triggers recommendation).
     3. GC-rich hotspots in amplicon (sliding window > 70 %).
     4. Strong hairpins in amplicon (stem >= 8 bp, Tm >= 50 degC).
