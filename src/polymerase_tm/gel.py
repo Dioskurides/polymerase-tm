@@ -63,26 +63,29 @@ LADDER_LABELS = {
 
 def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time_min: float) -> float:
     """Calculate relative migration distance (cm).
-    Uses a physics-derived empirical model for DNA in agarose:
-    - Migration is linearly proportional to Voltage * Time.
-    - Agarose percentage retards larger fragments exponentially more than small ones.
-    - Base migration distance scales roughly with 1 / log10(bp)^1.5.
+    Uses a logistic model (sigmoidal in log-space) that accurately reflects
+    real agarose gel electrophoresis migration dynamics.
     """
-    bp = max(20, bp)
-    agarose_pct = max(0.4, agarose_pct)
+    bp = max(10, bp)
+    agarose_pct = max(0.2, agarose_pct)
     voltage = max(1.0, voltage)
     time_min = max(1.0, time_min)
     
-    # Voltage/Time factor relative to standard 100V, 60min run
-    vt_factor = (voltage / 100.0) * (time_min / 60.0)
+    # Maximum distance a ~0 bp fragment would theoretically travel.
+    # Base is 10 cm for 100V, 60min, 1% agarose.
+    max_d = 10.0 * (voltage / 100.0) * (time_min / 60.0) * (1.0 / np.sqrt(agarose_pct))
     
-    # Base size factor (empirical curve for agarose)
-    size_factor = 25.0 / (np.log10(bp) ** 1.5)
+    # The size of the fragment that migrates exactly half of max_d.
+    # Higher agarose % -> smaller pores -> smaller bp50. (1% -> 1500 bp)
+    bp50 = 1500.0 / (agarose_pct ** 2)
     
-    # Retardation factor: higher agarose % slows down large fragments significantly more
-    retardation = agarose_pct ** (0.5 + 0.1 * np.log10(bp))
+    # The curve steepness (resolution window)
+    c = 0.95
     
-    distance_cm = vt_factor * (size_factor / retardation)
+    # Logistic function for relative migration (Rf)
+    rf = 1.0 / (1.0 + (bp / bp50) ** c)
+    
+    distance_cm = max_d * rf
     return distance_cm
 
 
@@ -119,8 +122,8 @@ def plot_virtual_gel(
     if not amplicons:
         return False
     
-    # Determine standard 10cm mini-gel layout
-    gel_length_cm = 10.0
+    # Determine standard 12cm mini-gel layout
+    gel_length_cm = 12.0
 
     num_lanes = 1 + len(amplicons)
     plot_width = max(3, num_lanes * 1.5)
