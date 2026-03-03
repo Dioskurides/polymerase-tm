@@ -1,5 +1,5 @@
 {% set name = "polymerase-tm" %}
-{% set version = "1.0.2" %}
+{% set version = "1.0.3" %}
 {% set python_min = "3.9" %}
 
 package:
@@ -24,10 +24,10 @@ requirements:
     - hatchling
   run:
     - python >={{ python_min }}
-  run_constrained:
     - biopython >=1.80
     - matplotlib-base >=3.5
     - seaborn >=0.12
+    - numpy >=1.20
 
 test:
   requires:
