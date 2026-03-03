@@ -129,6 +129,14 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
     parser.add_argument(
+        "--plot-gel",
+        nargs="?",
+        const="virtual_gel.png",
+        default=None,
+        metavar="PATH",
+        help="Generate a virtual agarose gel image if an amplicon size is known (default: virtual_gel.png).",
+    )
+    parser.add_argument(
         "--buffer",
         default=None,
         metavar="NAME",
@@ -177,6 +185,7 @@ def main(argv: list[str] | None = None) -> None:
         dmso_recommendation,
         print_dmso_report,
         pcr_protocol,
+        plot_virtual_gel,
     )
 
     if args.list_buffers:
@@ -266,6 +275,14 @@ def main(argv: list[str] | None = None) -> None:
                 for step in protocol["cycling"]:
                     print(f"    - {step['step']:20s} {step['temp']:>2d} degC, {step['time']}")
                 print(f"  Total Time: ~{protocol['total_time_min']} min\n")
+                
+                # Check for gel plot request
+                if args.plot_gel and amp_len:
+                    success = plot_virtual_gel(amp_len, output_path=args.plot_gel)
+                    if success:
+                        print(f"  [GEL] Saved virtual gel to: {args.plot_gel}\n")
+                    else:
+                        print(f"  [GEL] WARNING: Could not plot gel. Ensure seaborn and matplotlib are installed.\n")
                 
             except ImportError:
                 print("  [WARNING] Biopython is required to read template files. Install with: pip install biopython")
