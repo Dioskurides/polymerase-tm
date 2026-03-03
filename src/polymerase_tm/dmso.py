@@ -159,18 +159,32 @@ def analyze_amplicon(
     """
     template = template_seq.upper()
     fwd = fwd_bind.upper()
-    rev_rc = _reverse_complement(rev_bind)
+    rev = rev_bind.upper()
 
-    fwd_pos = template.find(fwd)
-    rev_pos = template.find(rev_rc)
+    fwd_match = fwd
+    fwd_pos = template.find(fwd_match)
+    if fwd_pos == -1 and len(fwd) > 15:
+        fwd_match = fwd[-15:]
+        fwd_pos = template.find(fwd_match)
+
+    rev_rc = _reverse_complement(rev)
+    rev_match = rev_rc
+    rev_pos = template.find(rev_match)
+    if rev_pos == -1 and len(rev) > 15:
+        rev_match = rev_rc[:15]
+        rev_pos = template.find(rev_match)
 
     if fwd_pos == -1 or rev_pos == -1:
         return None, fwd_pos, rev_pos
 
-    if fwd_pos < rev_pos:
-        amplicon = template[fwd_pos:rev_pos + len(rev_rc)]
+    if fwd_pos <= rev_pos:
+        a_len = int(len(fwd_match))
+        template_part = template[fwd_pos + a_len:rev_pos]
+        amplicon = fwd + template_part + rev_rc
     else:
-        amplicon = template[fwd_pos:] + template[:rev_pos + len(rev_rc)]
+        a_len = int(len(fwd_match))
+        template_part = template[fwd_pos + a_len:] + template[:rev_pos]
+        amplicon = fwd + template_part + rev_rc
 
     return amplicon, fwd_pos, rev_pos
 

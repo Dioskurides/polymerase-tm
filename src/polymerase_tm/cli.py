@@ -175,6 +175,7 @@ def main(argv: list[str] | None = None) -> None:
         list_buffers,
         dmso_recommendation,
         print_dmso_report,
+        pcr_protocol,
     )
 
     if args.list_buffers:
@@ -242,7 +243,33 @@ def main(argv: list[str] | None = None) -> None:
                 print(f"      Note: {additive['note']}")
         else:
             print(f"\n  [OK] No additive required")
+            
         print()
+
+        # Generate PCR protocol if template is provided
+        if args.template:
+            try:
+                from Bio import SeqIO
+                record = SeqIO.read(args.template, "genbank")  # Assume genbank or fasta can be parsed? SeqIO.parse might be better, we'll try genbank first as it was standard
+                template_seq = str(record.seq)
+                
+                protocol = pcr_protocol(seq1, seq2, polymerase=poly, dmso_pct=args.dmso, template=template_seq)
+                amp_len = protocol.get("amplicon_length")
+                
+                print(f"  [PCR CYCLING PROTOCOL]")
+                if amp_len:
+                    print(f"  Expected Amplicon: {amp_len} bp")
+                else:
+                    print(f"  Expected Amplicon: Not found (check primer orientation/binding)")
+                
+                for step in protocol["cycling"]:
+                    print(f"    - {step['step']:20s} {step['temp']:>2d} degC, {step['time']}")
+                print(f"  Total Time: ~{protocol['total_time_min']} min\n")
+                
+            except ImportError:
+                print("  [WARNING] Biopython is required to read template files. Install with: pip install biopython")
+            except Exception as e:
+                print(f"  [WARNING] Could not read template file: {e}")
 
         if args.dmso_check:
             report = dmso_recommendation(
