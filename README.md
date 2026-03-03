@@ -10,7 +10,7 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 ## Features
 
 - **Exact NEB Tm Calculator reproduction** -- algorithm recreated perfectly from the NEB Tm Calculator; verified against the official tool with 0 degC deviation across all tested sequences.
-- **Zero dependencies for core functions** -- `tm()`, `ta()`, `batch_tm()`, `check_pair()`, and all primer analysis work without any external packages.
+- **Core functions** -- `tm()`, `ta()`, `batch_tm()`, `check_pair()`, and comprehensive primer analysis.
 - **22 NEB polymerase products** with their specific buffer salt concentrations and Ta rules (Q5, Phusion, Taq, OneTaq, LongAmp, Vent, Deep Vent, and more).
 - **Automatic additive recommendation** -- suggests Q5 High GC Enhancer or DMSO based on primer GC, hairpins, and amplicon analysis.
 - **Batch processing** -- process hundreds of primer pairs from CSV files with full Tm/Ta/compatibility analysis.
@@ -22,28 +22,19 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 - **Primer quality scoring** -- comprehensive 0-100 score evaluating GC clamp, runs, repeats, hairpins.
 - **Hairpin detection** -- nearest-neighbor thermodynamic Tm for hairpin stems (SantaLucia 1998), G-T wobble pair tolerance, loop entropy penalty (Jacobson-Stockmayer).
 - **Site-directed mutagenesis** -- reimplementation of the [NEB Base Changer v2.7.2](https://nebasechanger.neb.com/) primer design algorithm. Supports AA point mutations, nucleotide substitutions/deletions/insertions, 12 NCBI genetic codes, codon usage/parsimony selection, back-to-back primer design with Owczarzy (2008) bivariate salt correction (Na+ + Mg2+).
-- **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures (requires `[bio]` extra for GenBank files).
-- **Virtual gel visualization** -- simulated agarose gel with realistic Ferguson-plot migration physics (requires `[viz]` extra).
+- **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures.
+- **Virtual gel visualization** -- simulated agarose gel with realistic Ferguson-plot migration physics.
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
 
-**Optional dependencies:** Biopython (for GenBank template analysis), matplotlib + seaborn (for virtual gel).
+**Dependencies:** Biopython, matplotlib, seaborn, and numpy.
 
 ## Installation
 
 ```bash
-# Core package (zero dependencies)
+# Standard Python Installation
 pip install polymerase-tm
 
-# With GenBank template support (adds biopython)
-pip install polymerase-tm[bio]
-
-# With virtual gel visualization (adds matplotlib, seaborn)
-pip install polymerase-tm[viz]
-
-# Everything
-pip install polymerase-tm[all]
-
-# From conda-forge (when available)
+# Or via Conda/Mamba (once approved)
 mamba install -c conda-forge polymerase-tm
 ```
 
