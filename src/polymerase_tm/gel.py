@@ -8,7 +8,7 @@ and the predicted amplicon size(s) using matplotlib and seaborn.
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 try:
     import matplotlib.pyplot as plt
@@ -110,7 +110,9 @@ def plot_virtual_gel(
     output_path: str = "virtual_gel.png",
     agarose_pct: float = 1.0,
     voltage: float = 110.0,
-    time_min: float = 60.0
+    time_min: float = 60.0,
+    gel_length_cm: float = 12.0,
+    amplicon_topologies: Optional[Union[str, List[str]]] = None
 ) -> bool:
     """
     Plot a simulated agarose gel with a DNA ladder and the target amplicon(s).
@@ -136,9 +138,19 @@ def plot_virtual_gel(
         
     if not amplicons:
         return False
+        
+    if amplicon_topologies is None:
+        topologies = ["linear"] * len(amplicons)
+    elif isinstance(amplicon_topologies, str):
+        topologies = [amplicon_topologies]
+    else:
+        topologies = list(amplicon_topologies)
+        
+    # Pad topologies list to match amplicons length if needed
+    while len(topologies) < len(amplicons):
+        topologies.append("linear")
     
-    # Determine standard 12cm mini-gel layout
-    gel_length_cm = 12.0
+    # The layout scales dynamically if gel_length_cm differs from 12.0
 
     # Set up the plot width dynamically based on number of lanes
     num_lanes = 1 + len(amplicons)
@@ -191,9 +203,20 @@ def plot_virtual_gel(
                 color="#cccccc", ha="right", va="center", fontsize=8, fontweight=font_weight)
 
     # Plot Amplicons (Lanes 2+)
-    for i, amp_len in enumerate(amplicons):
+    for i, (amp_len, top) in enumerate(zip(amplicons, topologies)):
         lane_x = lane_xs[i + 1]
-        dist_amp = _get_migration_distance_cm(amp_len, agarose_pct, voltage, time_min)
+        
+        # Apply topological mass compensation
+        # Supercoiled plasmids (coiled) migrate generally much faster than their mass implies (approx 60% of apparent size in 1% agarose)
+        # Open Circular (nicked) plasmids migrate slower due to drag (approx 150% of apparent size)
+        apparent_bp = amp_len
+        top_lower = top.lower()
+        if top_lower == "coiled":
+            apparent_bp = int(amp_len * 0.60)
+        elif top_lower == "nicked":
+            apparent_bp = int(amp_len * 1.50)
+            
+        dist_amp = _get_migration_distance_cm(apparent_bp, agarose_pct, voltage, time_min)
         if dist_amp > gel_length_cm + 2.0:
             ax.text(lane_x, gel_length_cm + 0.5, f"RAN OFF GEL\n({amp_len} bp)", 
                     color="#ff4444", ha="center", va="top", fontsize=9, fontweight="bold")
@@ -212,7 +235,11 @@ def plot_virtual_gel(
         ax.add_patch(Rectangle((lane_x - band_width/2, dist_amp - thickness_amp*0.2), band_width, thickness_amp*0.4, 
                                facecolor="#ffffff", alpha=1.0, zorder=5))
                                
-        ax.text(lane_x + band_width/2 + 0.1, dist_amp, f"{amp_len} bp", 
+        annotation = f"{amp_len} bp"
+        if top_lower != "linear":
+            annotation += f"\n({top_lower})"
+            
+        ax.text(lane_x + band_width/2 + 0.1, dist_amp, annotation, 
                 color="#ffffff", ha="left", va="center", fontsize=10, fontweight="bold")
     
     max_x = max(lane_xs) + 2.0
