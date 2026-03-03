@@ -93,7 +93,7 @@ from .mutagenesis import (
     parse_aa_mutation,
 )
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 __all__ = [
     # Core
@@ -152,14 +152,11 @@ __all__ = [
 ]
 
 import os
-import atexit
 
 _install_flag = os.path.join(os.path.dirname(__file__), ".installed")
 if not os.path.exists(_install_flag):
     try:
-        def _print_welcome():
-            print("Vocatus et invocatus deus aderit")
-        atexit.register(_print_welcome)
+        print("Vocatus et invocatus deus aderit")
         with open(_install_flag, "w") as f:
             f.write("installed\n")
     except Exception:
