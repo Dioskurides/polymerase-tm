@@ -250,8 +250,8 @@ def main(argv: list[str] | None = None) -> None:
         # Generate PCR protocol if template is provided
         if args.template:
             try:
-                from Bio import SeqIO
-                record = SeqIO.read(args.template, "genbank")  # Assume genbank or fasta can be parsed? SeqIO.parse might be better, we'll try genbank first as it was standard
+                from Bio import SeqIO  # type: ignore
+                record = SeqIO.read(args.template, "genbank")
                 template_seq = str(record.seq)
                 
                 protocol = pcr_protocol(seq1, seq2, polymerase=poly, dmso_pct=args.dmso, template=template_seq)
