@@ -151,6 +151,13 @@ def main(argv: list[str] | None = None) -> None:
         help="Choose the DNA ladder for the virtual gel. Default: 1kb_plus",
     )
     parser.add_argument(
+        "--topology",
+        nargs="+",
+        choices=["linear", "coiled", "nicked"],
+        default=["linear"],
+        help="Topological conformation of the amplicons/plasmids. Use a list of topologies matching --plot-gel-sizes. Default: linear",
+    )
+    parser.add_argument(
         "--agarose",
         type=float,
         default=1.0,
@@ -170,6 +177,13 @@ def main(argv: list[str] | None = None) -> None:
         default=60.0,
         metavar="MIN",
         help="Runtime in minutes for virtual gel physics. Default: 60.0",
+    )
+    parser.add_argument(
+        "--gel-length",
+        type=float,
+        default=12.0,
+        metavar="CM",
+        help="Total length of the virtual gel in cm. Default: 12.0",
     )
     parser.add_argument(
         "--buffer",
@@ -254,7 +268,9 @@ def main(argv: list[str] | None = None) -> None:
                     output_path=args.plot_gel,
                     agarose_pct=args.agarose,
                     voltage=args.voltage,
-                    time_min=args.time
+                    time_min=args.time,
+                    gel_length_cm=args.gel_length,
+                    amplicon_topologies=args.topology
                 )
                 if success:
                     print(f"\n  [GEL] Saved virtual gel to: {args.plot_gel}\n")
@@ -318,14 +334,18 @@ def main(argv: list[str] | None = None) -> None:
                 record = SeqIO.read(args.template, "genbank")
                 template_seq = str(record.seq)
                 
+                template_topology = record.annotations.get("topology", "linear")
+                
                 protocol = pcr_protocol(seq1, seq2, polymerase=poly, dmso_pct=args.dmso, template=template_seq)
                 amp_len = protocol.get("amplicon_length")
                 
                 print(f"  [PCR CYCLING PROTOCOL]")
                 if amp_len:
-                    print(f"  Expected Amplicon: {amp_len} bp")
+                    print(f"  Expected Amplicon: {amp_len} bp (linear)")
                 else:
+                    template_len = len(template_seq)
                     print(f"  Expected Amplicon: Not found (check primer orientation/binding)")
+                    print(f"  Template Size: {template_len} bp ({template_topology})")
                 
                 for step in protocol["cycling"]:
                     print(f"    - {step['step']:20s} {step['temp']:>2d} degC, {step['time']}")
@@ -333,10 +353,26 @@ def main(argv: list[str] | None = None) -> None:
                 
                 # Check for gel plot request
                 sizes_to_plot = []
+                tops_to_plot = []
+                
                 if amp_len:
                     sizes_to_plot.append(amp_len)
+                    tops_to_plot.append("linear")  # PCR products are always linear
+                else:
+                    sizes_to_plot.append(len(template_seq))
+                    # Biopython uses "circular", map to our "coiled" for plasmids
+                    tops_to_plot.append("coiled" if template_topology == "circular" else template_topology)
+                    
                 if getattr(args, "plot_gel_sizes", None):
                     sizes_to_plot.extend(args.plot_gel_sizes)
+                    
+                    # Extend topologies from args, pad with linear if needed
+                    custom_tops = args.topology if hasattr(args, "topology") else []
+                    for i in range(len(args.plot_gel_sizes)):
+                        if i < len(custom_tops):
+                            tops_to_plot.append(custom_tops[i])
+                        else:
+                            tops_to_plot.append("linear")
                     
                 if args.plot_gel and sizes_to_plot:
                     success = plot_virtual_gel(
@@ -345,7 +381,9 @@ def main(argv: list[str] | None = None) -> None:
                         output_path=args.plot_gel,
                         agarose_pct=args.agarose,
                         voltage=args.voltage,
-                        time_min=args.time
+                        time_min=args.time,
+                        gel_length_cm=args.gel_length,
+                        amplicon_topologies=tops_to_plot
                     )
                     if success:
                         print(f"  [GEL] Saved virtual gel to: {args.plot_gel} (Ladder: {args.ladder})\n")

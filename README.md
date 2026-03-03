@@ -167,8 +167,11 @@ polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.
 # Generate a standalone virtual gel with multiple custom fragments and a 100bp ladder
 polymerase-tm --plot-gel out_multi.png --ladder 100bp --plot-gel-sizes 150 200 400
 
-# Simulate a custom gel run (e.g. 1.5% agarose, 110V, 90 minutes)
-polymerase-tm --plot-gel custom_physics.png --ladder 1kb_plus --plot-gel-sizes 1500 3000 --agarose 1.5 --voltage 110 --time 90
+# Simulate a custom gel run (e.g. 1.5% agarose, 110V, 90 minutes, 15cm gel)
+polymerase-tm --plot-gel custom_physics.png --ladder 1kb_plus --plot-gel-sizes 1500 3000 --agarose 1.5 --voltage 110 --time 90 --gel-length 15.0
+
+# Compare topological isomers of the same size plasmid (Linear vs Supercoiled vs Nicked)
+polymerase-tm --plot-gel topologies.png --plot-gel-sizes 3000 3000 3000 --topology linear coiled nicked
 
 # List all polymerases / buffers
 polymerase-tm --list
