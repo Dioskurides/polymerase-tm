@@ -1,3 +1,14 @@
+## v1.0.3 — Mandatory Dependencies & numpy Integration
+
+### Breaking Changes
+- **All dependencies are now mandatory:** biopython>=1.80, matplotlib>=3.5, seaborn>=0.12, numpy>=1.20 are required dependencies instead of optional extras. The `[bio]`, `[viz]`, and `[all]` extras have been removed.
+
+### Improvements
+- **gel.py uses numpy directly:** `_get_migration_distance_cm()` now uses `np.interp()` instead of a pure-Python `_interp()` fallback. The custom `_interp()` function has been removed.
+- **Simplified imports in gel.py:** numpy is imported unconditionally at module level. Only matplotlib/seaborn remain behind the `_HAS_VIZ` try/except guard.
+
+---
+
 ## v1.0.2 — CLI PCR Protocol & Code Quality
 
 ### New Features

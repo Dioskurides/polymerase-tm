@@ -10,11 +10,12 @@ from __future__ import annotations
 import math
 from typing import Optional, Union
 
+import numpy as np
+
 try:
     import matplotlib.pyplot as plt
     import seaborn as sns
     from matplotlib.patches import Rectangle
-    import numpy as np
     _HAS_VIZ = True
 except ImportError:
     _HAS_VIZ = False
@@ -88,7 +89,7 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
         1.75, 1.45, 1.20,
     ]
     
-    base_dist = _interp(x, empirical_log_bps, empirical_cms)
+    base_dist = float(np.interp(x, empirical_log_bps, empirical_cms))
         
     # 2. Voltage and Time scaling (linear)
     # The base_dist is already perfectly calibrated to 1X TAE 100V 60m.
@@ -101,22 +102,6 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
     
     distance_cm = base_dist * vt_factor * agarose_factor
     return distance_cm
-
-
-def _interp(x: float, xp: list, fp: list) -> float:
-    """Linear interpolation (pure-Python replacement for np.interp).
-    
-    *xp* must be sorted in ascending order.
-    """
-    if x <= xp[0]:
-        return fp[0]
-    if x >= xp[-1]:
-        return fp[-1]
-    for i in range(len(xp) - 1):
-        if xp[i] <= x <= xp[i + 1]:
-            t = (x - xp[i]) / (xp[i + 1] - xp[i])
-            return fp[i] + t * (fp[i + 1] - fp[i])
-    return fp[-1]
 
 
 def plot_virtual_gel(
