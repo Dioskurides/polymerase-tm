@@ -61,32 +61,38 @@ LADDER_LABELS = {
 }
 
 
-def _get_migration_distance(bp: int, max_bp: int, min_bp: int) -> float:
-    """Calculate relative migration distance.
-    In agarose gels, migration distance D is roughly proportional to 1 / log10(bp).
-    We use an empirical curve to make it look realistic.
+def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time_min: float) -> float:
+    """Calculate relative migration distance (cm).
+    Uses a physics-derived empirical model for DNA in agarose:
+    - Migration is linearly proportional to Voltage * Time.
+    - Agarose percentage retards larger fragments exponentially more than small ones.
+    - Base migration distance scales roughly with 1 / log10(bp)^1.5.
     """
-    bp = max(1, bp)
-    min_bp = max(1, min_bp)
+    bp = max(20, bp)
+    agarose_pct = max(0.4, agarose_pct)
+    voltage = max(1.0, voltage)
+    time_min = max(1.0, time_min)
     
-    # Simple empirical shift to make the visual spacing look like a real gel 
-    # (very large fragments compress at the top, smaller ones spread out at the bottom)
-    def gel_curve(size: float) -> float:
-        return 1.0 / (np.log10(size) ** 1.5)
-        
-    val_bp = gel_curve(bp)
-    val_max = gel_curve(max_bp)
-    val_min = gel_curve(min_bp)
+    # Voltage/Time factor relative to standard 100V, 60min run
+    vt_factor = (voltage / 100.0) * (time_min / 60.0)
     
-    # Scale from 0 (wells) to 1.0 (bottom)
-    distance = (val_bp - val_max) / (val_min - val_max)
-    return distance
+    # Base size factor (empirical curve for agarose)
+    size_factor = 25.0 / (np.log10(bp) ** 1.5)
+    
+    # Retardation factor: higher agarose % slows down large fragments significantly more
+    retardation = agarose_pct ** (0.5 + 0.1 * np.log10(bp))
+    
+    distance_cm = vt_factor * (size_factor / retardation)
+    return distance_cm
 
 
 def plot_virtual_gel(
     amplicon_lengths: Union[int, List[int]],
     ladder_name: str = "1kb_plus",
     output_path: str = "virtual_gel.png",
+    agarose_pct: float = 1.0,
+    voltage: float = 110.0,
+    time_min: float = 60.0
 ) -> bool:
     """
     Plot a simulated agarose gel with a DNA ladder and the target amplicon(s).
@@ -113,13 +119,8 @@ def plot_virtual_gel(
     if not amplicons:
         return False
     
-    all_sizes = [b[0] for b in ladder] + amplicons
-    max_bp = max(all_sizes) * 1.2
-    
-    ladder_min = min(b[0] for b in ladder)
-    min_bp = min(ladder_min * 0.8, min(amplicons) * 0.8)
-    if min_bp < 25:
-        min_bp = max(10, min_bp)
+    # Determine standard 10cm mini-gel layout
+    gel_length_cm = 10.0
 
     num_lanes = 1 + len(amplicons)
     plot_width = max(3, num_lanes * 1.5)
@@ -143,8 +144,11 @@ def plot_virtual_gel(
     # Plot Ladder (Lane 1)
     lane1_x = lane_xs[0]
     for bp, intensity in ladder:
-        dist = _get_migration_distance(bp, max_bp, min_bp)
-        thickness = 0.005 * intensity
+        dist = _get_migration_distance_cm(bp, agarose_pct, voltage, time_min)
+        if dist > gel_length_cm + 2.0:
+            continue  # fragment ran off the gel entirely
+            
+        thickness = 0.05 * intensity
         
         ax.add_patch(Rectangle((lane1_x - band_width/2, dist - thickness*1.5), band_width, thickness*3, 
                                facecolor=glow_color, alpha=0.3 + (intensity*0.1), zorder=3))
@@ -158,9 +162,13 @@ def plot_virtual_gel(
     # Plot Amplicons (Lanes 2+)
     for i, amp_len in enumerate(amplicons):
         lane_x = lane_xs[i + 1]
-        dist_amp = _get_migration_distance(amp_len, max_bp, min_bp)
-        
-        thickness_amp = 0.01
+        dist_amp = _get_migration_distance_cm(amp_len, agarose_pct, voltage, time_min)
+        if dist_amp > gel_length_cm + 2.0:
+            ax.text(lane_x, gel_length_cm + 0.5, f"RAN OFF GEL\n({amp_len} bp)", 
+                    color="#ff4444", ha="center", va="top", fontsize=9, fontweight="bold")
+            continue
+            
+        thickness_amp = 0.1
         ax.add_patch(Rectangle((lane_x - band_width/2, dist_amp - thickness_amp*1.5), band_width, thickness_amp*3, 
                                facecolor=glow_color, alpha=0.6, zorder=3))
         ax.add_patch(Rectangle((lane_x - band_width/2, dist_amp - thickness_amp/2), band_width, thickness_amp, 
@@ -171,7 +179,8 @@ def plot_virtual_gel(
     
     max_x = max(lane_xs) + 1.0
     ax.set_xlim(0, max_x)
-    ax.set_ylim(1.05, -0.1)
+    # Print the physical dimensions using invert Y so 0 is at top
+    ax.set_ylim(gel_length_cm + 0.5, -0.5)
     
     x_ticks = lane_xs
     x_labels = [ladder_label] + [f"Sample {i+1}" if len(amplicons) > 1 else "Sample" for i in range(len(amplicons))]
