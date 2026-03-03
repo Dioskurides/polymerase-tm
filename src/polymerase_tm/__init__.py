@@ -69,7 +69,10 @@ from .analysis import (
     primer_quality,
 )
 
-__version__ = "0.6.1"
+# --- Visualization ---
+from .gel import plot_virtual_gel
+
+__version__ = "0.7.0"
 
 __all__ = [
     # Core
@@ -101,6 +104,8 @@ __all__ = [
     "find_hairpins",
     "primer_hairpin",
     "analyze_amplicon",
+    # Visualization
+    "plot_virtual_gel",
     # Data
     "NN_PARAMS",
     "TERMINAL",

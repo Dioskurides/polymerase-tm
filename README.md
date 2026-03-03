@@ -158,6 +158,12 @@ polymerase-tm --salt 50 ATGTCCCTGCTCTTCTCTCGATGCAA
 # With DMSO correction
 polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
+# DMSO analysis with template
+polymerase-tm --dmso-check ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.gbk
+
+# Generate PCR Cycler Protocol & Virtual Agarose Gel Plot
+polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.gbk --plot-gel out_gel.png
+
 # List all polymerases / buffers
 polymerase-tm --list
 polymerase-tm --list-buffers
@@ -246,6 +252,7 @@ polymerase_tm/
 ├── dmso.py          # DMSO analysis, hairpins, GC analysis
 ├── batch.py         # batch_tm(), pcr_protocol(), CSV I/O
 ├── analysis.py      # restriction_scan(), primer_dimer(), primer_quality()
+├── gel.py           # Virtual agarose gel visualization
 └── cli.py           # Command-line interface
 ```
 
