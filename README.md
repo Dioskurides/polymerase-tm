@@ -14,12 +14,13 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 - **22 NEB polymerase products** with their specific buffer salt concentrations and Ta rules (Q5, Phusion, Taq, OneTaq, LongAmp, Vent, Deep Vent, and more).
 - **Automatic additive recommendation** -- suggests Q5 High GC Enhancer or DMSO based on primer GC, hairpins, and amplicon analysis.
 - **Batch processing** -- process hundreds of primer pairs from CSV files with full Tm/Ta/compatibility analysis.
-- **PCR protocol generator** -- generates complete cycling protocols with polymerase-specific temperatures and extension times.
+- **PCR protocol generator** -- generates complete cycling protocols with polymerase-specific temperatures and extension times. Automatically generates **touchdown protocols** when primer Tm difference exceeds 3 degC.
 - **Smart primer design** -- find the optimal binding length for a target Tm.
 - **Primer dimer detection** -- checks 3'-end complementarity and self-dimer risk.
 - **Gibson Assembly overlap design** -- generates full primers with overhangs for Gibson/HiFi Assembly.
 - **Restriction site scanning** -- scans primers for ~120 NEB restriction enzyme sites with full IUPAC ambiguity code support (accepts enzyme names or custom dict).
 - **Primer quality scoring** -- comprehensive 0-100 score evaluating GC clamp, runs, repeats, hairpins.
+- **Hairpin detection** -- nearest-neighbor thermodynamic Tm for hairpin stems (SantaLucia 1998), G-T wobble pair tolerance, loop entropy penalty (Jacobson-Stockmayer).
 - **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures (requires `[bio]` extra for GenBank files).
 - **Virtual gel visualization** -- simulated agarose gel with realistic Ferguson-plot migration physics (requires `[viz]` extra).
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
@@ -206,7 +207,7 @@ polymerase-tm --version
 | `list_buffers()` | List all 15 NEB buffers with salt concentrations |
 | `batch_tm(sequences, polymerase)` | Batch Tm for multiple sequences |
 | `check_pair(fwd, rev, polymerase)` | Pair compatibility + additive recommendation |
-| `pcr_protocol(fwd, rev, polymerase, amplicon_length)` | Full PCR cycling protocol |
+| `pcr_protocol(fwd, rev, polymerase, amplicon_length, touchdown)` | Full PCR cycling protocol (auto-touchdown) |
 | `optimal_binding_length(seq, target_tm, polymerase)` | Find shortest binding region for target Tm |
 | `reverse_complement(seq)` | DNA reverse complement |
 | `from_csv(path, polymerase)` | Read primer pairs from CSV, compute Tm/Ta |
@@ -215,6 +216,8 @@ polymerase-tm --version
 | `gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)` | Design Gibson/HiFi Assembly primers |
 | `restriction_scan(seq, enzymes)` | Scan for restriction sites (~120 NEB enzymes, IUPAC support, accepts name list or dict) |
 | `primer_quality(seq)` | Quality score 0-100 with issues list |
+| `find_hairpins(seq)` | Detect hairpin stem-loops with NN Tm |
+| `primer_hairpin(seq)` | Hairpin scan tuned for primer-length sequences |
 | `additive_recommendation(fwd, rev)` | DMSO / GC Enhancer recommendation |
 | `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
 | `print_dmso_report(report)` | Pretty-print a DMSO analysis report |

@@ -1,3 +1,16 @@
+## v1.0.1 — Hairpin NN & Touchdown PCR
+
+### New Features
+- **Nearest-neighbor hairpin Tm:** `find_hairpins()` and `primer_hairpin()` now compute Tm using SantaLucia (1998) NN parameters with Jacobson-Stockmayer loop entropy, replacing the Wallace rule. G-T wobble pairs are tolerated in stems ≥ 6 bp. Hairpin results now include a `mismatches` field.
+- **Touchdown PCR protocol:** `pcr_protocol()` auto-generates touchdown protocols when primer Tm difference > 3 °C. Starts annealing at the higher Tm and decreases by 0.5 °C/cycle. Configurable via `touchdown`, `td_step`, `td_cycles` parameters.
+- **Touchdown recommendation in `check_pair()`:** Instead of "redesign primers", large Tm differences now suggest using a touchdown protocol.
+
+### Improvements
+- Hairpin deduplication now sorts by Tm (highest first) instead of stem length.
+- 65 tests passing.
+
+---
+
 ## v1.0.0 — Production Release
 
 ### Breaking Changes

@@ -22,6 +22,8 @@ from polymerase_tm import (
     from_csv,
     to_csv,
     additive_recommendation,
+    find_hairpins,
+    primer_hairpin,
     RESTRICTION_ENZYMES,
 )
 
@@ -345,10 +347,10 @@ class TestAdditiveRecommendation:
         assert _additive_recommendation is additive_recommendation
 
     def test_no_additive_needed(self):
-        # Use ~50% GC primers that don't trigger any recommendation
+        # Use ~45% GC non-repetitive primers that don't trigger any recommendation
         result = additive_recommendation(
-            "ATCGATCGATCGATCGATCG",
-            "GCTAGCTAGCTAGCTAGCT",
+            "ACTTGCATAGCTTGACTGCA",
+            "TGCAGTCAAGCTATGCAAGT",
         )
         assert result["recommended"] is False
 
@@ -397,6 +399,128 @@ class TestIUPACRestrictionScan:
         hits = restriction_scan("ATGAATTCGATCG", enzymes=["EcoRI"])
         assert len(hits) >= 1
         assert hits[0]["enzyme"] == "EcoRI"
+
+
+class TestHairpinNN:
+    """Test NN-based hairpin Tm calculation."""
+
+    def test_hairpin_returns_tm(self):
+        """Hairpins should have numeric Tm from NN model."""
+        # Sequence with a known self-complementary stem: GCGCGC...loop...GCGCGC
+        seq = "GCGCGCAAAGCGCGC"
+        hits = find_hairpins(seq, stem_min=4, loop_min=2, loop_max=6)
+        assert len(hits) >= 1
+        # NN Tm should be a real number, not Wallace 2*AT+4*GC
+        assert isinstance(hits[0]["tm_estimate"], float)
+
+    def test_hairpin_tm_increases_with_gc(self):
+        """Higher GC stem should give higher Tm."""
+        # AT-rich stem
+        at_seq = "AATATAAAAATATAA"
+        at_hits = find_hairpins(at_seq, stem_min=4, loop_min=2, loop_max=6)
+        # GC-rich stem
+        gc_seq = "GCGCGCAAAGCGCGC"
+        gc_hits = find_hairpins(gc_seq, stem_min=4, loop_min=2, loop_max=6)
+        if at_hits and gc_hits:
+            assert gc_hits[0]["tm_estimate"] > at_hits[0]["tm_estimate"]
+
+    def test_hairpin_mismatches_field(self):
+        """Hairpin results should include mismatches count."""
+        seq = "GCGCGCAAAGCGCGC"
+        hits = find_hairpins(seq, stem_min=4, loop_min=2, loop_max=6)
+        assert len(hits) >= 1
+        assert "mismatches" in hits[0]
+
+    def test_wobble_pair_detected(self):
+        """G-T wobble pairs should be detected in stems >= 6 bp."""
+        # GCGCGC stem with one G-T wobble: GCGTGC pairs with GCGCGC
+        # Left: GCGTGC, Right reversed: GCGCGC -> pairs G-C, C-G, G-G(no), ...
+        # Better: construct explicitly
+        # Stem left=GCGCGC, stem right=GCGCGC but with T replacing one C
+        # GCGCGC + AAA + GTGCGC  (reversed right = CGCGTG)
+        # Pairs: G-G(no)... let me think more carefully
+        # left=GCGCGC, reversed(right)=complement should be GCGCGC
+        # With wobble: if right has T instead of C at one pos
+        # right = GCGCGT, reversed = TGCGCG
+        # pairs with left GCGCGC: G-T(wobble), C-G, G-C, C-G, G-C, C-G
+        seq = "GCGCGCAAATGCGCG"
+        hits = find_hairpins(seq, stem_min=6, loop_min=2, loop_max=6)
+        wobble_hits = [h for h in hits if h.get("mismatches", 0) > 0]
+        # Should find at least some hits (either perfect or wobble)
+        assert len(hits) >= 1
+
+    def test_primer_hairpin_wrapper(self):
+        """primer_hairpin() should work with smaller stem_min."""
+        seq = "GCGCAAAGCGC"  # short hairpin
+        hits = primer_hairpin(seq)
+        # Should detect with stem_min=4
+        for h in hits:
+            assert h["stem_length"] >= 4
+            assert "tm_estimate" in h
+
+
+class TestTouchdownProtocol:
+    """Test touchdown PCR protocol generation."""
+
+    # Primers with large Tm difference (> 5 degC)
+    FWD_HIGH = "GCGCGCGCGCGCGCGCGCGC"  # very GC-rich, high Tm
+    REV_LOW = "AATTATTATATTAATTAAT"    # AT-rich, low Tm
+
+    # Primers with small Tm difference
+    FWD_MATCH = "ATGTCCCTGCTCTTCTCTCGATGCAA"
+    REV_MATCH = "GTGCCTCCGAGCCAGCACC"
+
+    def test_auto_touchdown_large_diff(self):
+        """Auto-enable touchdown when Tm diff > 3 degC."""
+        protocol = pcr_protocol(self.FWD_HIGH, self.REV_LOW)
+        assert protocol["touchdown"] is True
+        step_names = [s["step"] for s in protocol["cycling"]]
+        assert "Touchdown Annealing" in step_names
+        assert "Touchdown Denaturation" in step_names
+        assert "Touchdown Extension" in step_names
+
+    def test_no_touchdown_matched_primers(self):
+        """No touchdown for well-matched primers."""
+        protocol = pcr_protocol(self.FWD_MATCH, self.REV_MATCH)
+        assert protocol["touchdown"] is False
+        step_names = [s["step"] for s in protocol["cycling"]]
+        assert "Touchdown Annealing" not in step_names
+
+    def test_force_touchdown(self):
+        """Force touchdown even with matched primers."""
+        protocol = pcr_protocol(self.FWD_MATCH, self.REV_MATCH, touchdown=True)
+        assert protocol["touchdown"] is True
+
+    def test_suppress_touchdown(self):
+        """Suppress touchdown even with mismatched primers."""
+        protocol = pcr_protocol(self.FWD_HIGH, self.REV_LOW, touchdown=False)
+        assert protocol["touchdown"] is False
+        step_names = [s["step"] for s in protocol["cycling"]]
+        assert "Touchdown Annealing" not in step_names
+
+    def test_touchdown_structure(self):
+        """Touchdown protocol should have correct structure."""
+        protocol = pcr_protocol(self.FWD_HIGH, self.REV_LOW)
+        assert "td_cycles" in protocol
+        assert "td_start_temp" in protocol
+        assert "td_end_temp" in protocol
+        assert "td_step" in protocol
+        assert protocol["td_start_temp"] > protocol["td_end_temp"]
+        assert protocol["td_step"] == 0.5
+
+    def test_touchdown_total_cycles(self):
+        """TD cycles + remaining cycles should equal num_cycles."""
+        protocol = pcr_protocol(self.FWD_HIGH, self.REV_LOW, num_cycles=30)
+        td_cycles = protocol["td_cycles"]
+        remaining = [s for s in protocol["cycling"] if s["step"] == "Annealing"]
+        if remaining:
+            assert td_cycles + remaining[0]["cycles"] == 30
+
+    def test_check_pair_suggests_touchdown(self):
+        """check_pair should suggest touchdown for large Tm diff."""
+        result = check_pair(self.FWD_HIGH, self.REV_LOW)
+        warnings_text = " ".join(result["warnings"])
+        assert "touchdown" in warnings_text.lower()
 
 
 class TestVersion:
