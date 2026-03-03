@@ -76,14 +76,14 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
     x = np.log10(bp)
     
     # Adjusted polynomial fit to perfectly space NEB 1kb+ ladder ranges (0.1kb - 10kb)
-    # y = ax^2 + bx + c, tuned such that
-    # 10k (x=4) is at ~1.5cm
-    # 3k (x=3.47) is at ~3.5cm
-    # 1k (x=3) is at ~5.8cm
-    # 0.5k(x=2.7) is at ~7.8cm
-    # 0.1k(x=2) is at ~11.5cm
-    base_dist = 0.59 * (x**2) - 8.5 * x + 26.0
-    
+    if bp >= 100:
+        base_dist = 0.59 * (x**2) - 8.5 * x + 26.0
+    else:
+        # Fragments < 100bp experience minimal retardation and run linearly with the buffer front
+        # 100bp (x=2) is at 11.36cm
+        # We model a linear spread for <100bp: 50bp ~ 12.5cm, 25bp ~ 13.0cm
+        base_dist = -3.8 * x + 18.96 
+        
     # 2. Voltage and Time scaling (linear)
     vt_factor = (voltage / 100.0) * (time_min / 60.0)
     
