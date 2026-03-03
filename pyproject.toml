@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "polymerase-tm"
-version = "1.0.3"
-description = "Exact reproduction of the NEB Tm Calculator for PCR primer analysis with all NEB polymerases"
+version = "2.0.0"
+description = "NEB Tm Calculator + Base Changer: PCR primer Tm/Ta and site-directed mutagenesis primer design for all NEB polymerases"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"

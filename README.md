@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/pypi/pyversions/polymerase-tm)](https://pypi.org/project/polymerase-tm/)
 
-Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.com/) for PCR primer melting temperature (Tm) and annealing temperature (Ta) prediction.
+Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.com/) and [NEB Base Changer](https://nebasechanger.neb.com/) for PCR primer melting temperature (Tm), annealing temperature (Ta), and site-directed mutagenesis (SDM) primer design.
 
 ## Features
 
@@ -21,6 +21,7 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 - **Restriction site scanning** -- scans primers for ~120 NEB restriction enzyme sites with full IUPAC ambiguity code support (accepts enzyme names or custom dict).
 - **Primer quality scoring** -- comprehensive 0-100 score evaluating GC clamp, runs, repeats, hairpins.
 - **Hairpin detection** -- nearest-neighbor thermodynamic Tm for hairpin stems (SantaLucia 1998), G-T wobble pair tolerance, loop entropy penalty (Jacobson-Stockmayer).
+- **Site-directed mutagenesis** -- reimplementation of the [NEB Base Changer v2.7.2](https://nebasechanger.neb.com/) primer design algorithm. Supports AA point mutations, nucleotide substitutions/deletions/insertions, 12 NCBI genetic codes, codon usage/parsimony selection, back-to-back primer design with Owczarzy (2008) bivariate salt correction (Na+ + Mg2+).
 - **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures (requires `[bio]` extra for GenBank files).
 - **Virtual gel visualization** -- simulated agarose gel with realistic Ferguson-plot migration physics (requires `[viz]` extra).
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
@@ -137,6 +138,33 @@ results = from_csv("primers.csv")  # expects columns: name, fwd, rev
 to_csv(results, "results_with_tm.csv")
 ```
 
+### Site-Directed Mutagenesis (NEB Base Changer)
+
+```python
+from polymerase_tm import BaseChanger
+
+# Design SDM primers for a point mutation
+template = "ATGACCATGATTACGAATTCACTGGCCGTCGTTTTACAACGTCGTGACTGG..."
+bc = BaseChanger(template)
+result = bc.point_mutation("T2A")
+print(f"FWD: {result.forward.sequence} (Tm={result.forward.tm})")
+print(f"REV: {result.reverse.sequence} (Tm={result.reverse.tm})")
+print(f"Ta:  {result.ta} degC")
+
+# Multiple mutations
+results = bc.batch("T2A A3G K5R")
+
+# Deletion / insertion
+result = bc.deletion(start=10, length=3)
+result = bc.insertion(position=10, insert_seq="AAAAAA")
+
+# Parsimony codon selection (fewest base changes)
+bc = BaseChanger(template, codon_mode="parsimony")
+
+# Alternative genetic code (e.g. vertebrate mitochondrial)
+bc = BaseChanger(template, genetic_code=2)
+```
+
 ### DMSO Analysis
 
 ```python
@@ -192,6 +220,13 @@ polymerase-tm --list-buffers
 
 # Version
 polymerase-tm --version
+
+# Site-directed mutagenesis (NEB Base Changer)
+polymerase-tm --sdm --mutation M1A TEMPLATE_SEQ
+polymerase-tm --sdm --mutation "T2A K5R" --codon-mode parsimony TEMPLATE_SEQ
+polymerase-tm --sdm --mode del --mutation 10:3 TEMPLATE_SEQ
+polymerase-tm --sdm --mode ins --mutation 10:AAAAAA TEMPLATE_SEQ
+polymerase-tm --sdm --mutation T2A --genetic-code 2 TEMPLATE_SEQ
 ```
 
 ## API Reference
@@ -220,6 +255,14 @@ polymerase-tm --version
 | `print_dmso_report(report)` | Pretty-print a DMSO analysis report |
 | `gc_content(seq)` | GC content as fraction |
 | `plot_virtual_gel(amplicon_lengths, ladder_name, agarose_pct, ...)` | Simulated agarose gel image (requires `[viz]`) |
+| `BaseChanger(template, orf_start, genetic_code, codon_mode, ...)` | SDM primer designer (NEB Base Changer v2.7.2) |
+| `select_codon(target_aa, original_codon, mode, genetic_code)` | Codon selection (usage/parsimony) |
+| `parse_aa_mutation(mutation_str)` | Parse AA mutation notation ("M1A", "K2R:CGC") |
+| `calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)` | SDM Tm with bivariate salt correction |
+| `owczarzy_bivariate(raw_tm, seq, mono_mM, divalent_mM)` | Owczarzy (2008) Na+/Mg2+ correction |
+| `GENETIC_CODES` | All 12 NCBI genetic codes |
+| `get_codon_table(code_id)` | Full codon table for any genetic code |
+| `get_aa_to_codons(code_id)` | Amino acid → codons for any genetic code |
 
 > **Buffer / salt override:** `tm()` and `ta()` accept optional `buffer` (NEB buffer name) or `salt_mM` (direct mM value) to override the polymerase default. Priority: `salt_mM` > `buffer` > polymerase default.
 
@@ -228,8 +271,10 @@ polymerase-tm --version
 | Component | Method | Reference |
 |:---|:---|:---|
 | Nearest-neighbor Tm | SantaLucia (1998) | PNAS 95:1460-5 |
-| Salt correction | Owczarzy et al. (2004) | Biochemistry 43:3537-54 |
+| Salt correction (mono) | Owczarzy et al. (2004) | Biochemistry 43:3537-54 |
+| Salt correction (bivariate) | Owczarzy et al. (2008) | Biochemistry 47:5336-53 |
 | Ta rules | Polymerase-specific | NEB Tm Calculator v1.16 |
+| SDM primer design | Back-to-back | NEB Base Changer v2.7.2 |
 | DMSO correction | -0.6 degC per 1% | NEB Tm Calculator v1.16 |
 
 ### Buffer Salt Concentrations
@@ -263,24 +308,25 @@ polymerase-tm --version
 ## Disclaimer
 
 This package is not affiliated with New England Biolabs (NEB).
-The algorithm was recreated from the publicly available JavaScript source of the [NEB Tm Calculator](https://tmcalculator.neb.com/) for research and educational purposes.
-Always verify critical calculations against the official tool.
+The algorithms were recreated from the publicly available JavaScript sources of the [NEB Tm Calculator](https://tmcalculator.neb.com/) and [NEB Base Changer](https://nebasechanger.neb.com/) for research and educational purposes.
+Always verify critical calculations against the official tools.
 
 ## Module Structure
 
 ```
 polymerase_tm/
 ├── __init__.py      # Re-exports (backward compatible)
-├── constants.py     # NN_PARAMS, BUFFERS, POLYMERASES
-├── core.py          # tm(), ta(), list_buffers(), list_polymerases()
+├── constants.py     # NN_PARAMS, BUFFERS, POLYMERASES, GENETIC_CODES
+├── core.py          # tm(), ta(), owczarzy_bivariate(), calc_sdm_tm()
+├── mutagenesis.py   # BaseChanger, SDMPrimer, MutagenesisResult
 ├── dmso.py          # DMSO analysis, hairpins, GC analysis
 ├── batch.py         # batch_tm(), pcr_protocol(), CSV I/O
 ├── analysis.py      # restriction_scan(), primer_dimer(), primer_quality()
 ├── gel.py           # Virtual agarose gel visualization
-└── cli.py           # Command-line interface
+└── cli.py           # Command-line interface (Tm/Ta + SDM)
 ```
 
-All functions are re-exported from `__init__.py` — `from polymerase_tm import tm` works as before.
+All functions are re-exported from `__init__.py` — `from polymerase_tm import tm` and `from polymerase_tm import BaseChanger` work directly.
 
 ## License
 

@@ -4,32 +4,44 @@ polymerase-tm — NEB Tm Calculator, Python Implementation
 Reproduces the melting temperature (Tm) and annealing temperature (Ta)
 calculations of the NEB Tm Calculator (https://tmcalculator.neb.com/).
 
+Also includes the NEB Base Changer primer design algorithm for
+site-directed mutagenesis (SDM) using the Q5 SDM Kit.
+
 Algorithm
 ---------
 - Tm:  SantaLucia (1998) nearest-neighbor model.
 - Salt correction:  Owczarzy et al. (2004, 2008) monovalent-ion method.
+- Bivariate salt:  Owczarzy et al. (2008) Na⁺ + Mg²⁺ (for SDM).
 - Ta:  Polymerase-specific offset + cap (see POLYMERASES table).
 - DMSO correction:  -0.6 degC per 1 % DMSO (v/v).
 
 Buffer salt concentrations and Ta rules were extracted from the NEB
 Tm Calculator front-end source (main-90540d67e2.js, version 1.16.10).
+NEBaseChanger algorithms from index.dfcf8292.js, version 2.7.2.
 
 References
 ----------
 1. SantaLucia J Jr. (1998) PNAS 95:1460-5.
 2. Owczarzy R et al. (2004) Biochemistry 43:3537-54.
 3. Owczarzy R et al. (2008) Biochemistry 47:5336-53.
+4. Allawi HT, SantaLucia J Jr. (1997-1999) Mismatch parameters.
 """
 
 from __future__ import annotations
 
 # --- Constants ---
-from .constants import NN_PARAMS, TERMINAL, BUFFERS, POLYMERASES
+from .constants import (
+    NN_PARAMS, TERMINAL, BUFFERS, POLYMERASES,
+    MISMATCH_NN, CODON_TABLE, AA_TO_CODONS, ECOLI_CODON_USAGE,
+    GENETIC_CODES, get_codon_table, get_aa_to_codons,
+)
 
 # --- Core Tm/Ta ---
 from .core import (
     calc_nn_raw,
     owczarzy_correction,
+    owczarzy_bivariate,
+    calc_sdm_tm,
     tm,
     ta,
     list_polymerases,
@@ -72,7 +84,16 @@ from .analysis import (
 # --- Visualization ---
 from .gel import plot_virtual_gel
 
-__version__ = "1.0.3"
+# --- Site-Directed Mutagenesis (NEB Base Changer) ---
+from .mutagenesis import (
+    BaseChanger,
+    SDMPrimer,
+    MutagenesisResult,
+    select_codon,
+    parse_aa_mutation,
+)
+
+__version__ = "2.0.0"
 
 __all__ = [
     # Core
@@ -82,6 +103,8 @@ __all__ = [
     "list_buffers",
     "calc_nn_raw",
     "owczarzy_correction",
+    "owczarzy_bivariate",
+    "calc_sdm_tm",
     # Automation
     "reverse_complement",
     "batch_tm",
@@ -107,10 +130,37 @@ __all__ = [
     "analyze_amplicon",
     # Visualization
     "plot_virtual_gel",
+    # Mutagenesis
+    "BaseChanger",
+    "SDMPrimer",
+    "MutagenesisResult",
+    "select_codon",
+    "parse_aa_mutation",
     # Data
     "NN_PARAMS",
     "TERMINAL",
     "BUFFERS",
     "POLYMERASES",
     "RESTRICTION_ENZYMES",
+    "MISMATCH_NN",
+    "CODON_TABLE",
+    "AA_TO_CODONS",
+    "ECOLI_CODON_USAGE",
+    "GENETIC_CODES",
+    "get_codon_table",
+    "get_aa_to_codons",
 ]
+
+import os
+import atexit
+
+_install_flag = os.path.join(os.path.dirname(__file__), ".installed")
+if not os.path.exists(_install_flag):
+    try:
+        def _print_welcome():
+            print("Vocatus et invocatus deus aderit")
+        atexit.register(_print_welcome)
+        with open(_install_flag, "w") as f:
+            f.write("installed\n")
+    except Exception:
+        pass

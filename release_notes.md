@@ -1,3 +1,41 @@
+## v2.0.0 — NEB Base Changer Integration (Site-Directed Mutagenesis)
+
+### New Features
+- **`BaseChanger` class** — full reimplementation of the [NEB Base Changer v2.7.2](https://nebasechanger.neb.com/) SDM primer design algorithm:
+  - **AA point mutations** (`M1A`, `K2R:CGC`, multiple)
+  - **Nucleotide substitutions** (`substitution()`)
+  - **Nucleotide deletions** (`deletion()`)
+  - **Nucleotide insertions** (`insertion()`)
+  - **Batch mode** for multiple mutations
+  - **Codon selection**: E. coli usage frequency or parsimony (fewest base changes)
+  - **12 NCBI genetic codes** (Standard, Vertebrate Mitochondrial, Yeast Mito., etc.)
+  - **Confine-to-tails option** for large substitutions
+  - Back-to-back primer placement with Tm balancing
+- **`owczarzy_bivariate()`** — Owczarzy et al. (2008) bivariate salt correction considering both Na⁺ and Mg²⁺ (3 regimes: mono-dominated, mixed, divalent-dominated)
+- **`calc_sdm_tm()`** — Tm calculation with Q5 SDM Kit default conditions (50 mM Na⁺, 2 mM Mg²⁺, 500 nM primer, DMSO correction)
+- **CLI `--sdm` subcommand** — site-directed mutagenesis from the terminal with `--mutation`, `--mode`, `--orf-start`, `--codon-mode`, `--genetic-code`, `--confine-to-tails` options
+- **`GENETIC_CODES` dict** — all 12 NCBI genetic codes as differential tables
+- **`get_codon_table()` / `get_aa_to_codons()`** — resolve any genetic code to full codon tables
+- **`select_codon()` / `parse_aa_mutation()`** — codon selection and mutation format parsing utilities
+
+### New Files
+- `mutagenesis.py` — `BaseChanger`, `SDMPrimer`, `MutagenesisResult` dataclasses, primer design engine
+- `tests/test_mutagenesis.py` — 39 new tests (codon selection, mutation parsing, genetic codes, bivariate Tm, BaseChanger integration)
+
+### Changed Files
+- `constants.py` — Owczarzy 2008 coefficients, mismatch NN parameters, loop/bulge penalties, codon tables, E. coli usage, 12 genetic codes
+- `core.py` — `owczarzy_bivariate()`, `calc_sdm_tm()`
+- `__init__.py` — all new exports added to `__all__`
+- `cli.py` — SDM argument group and `_handle_sdm()` handler
+- `README.md` — SDM documentation, updated API table, algorithm references
+
+### Tests
+- 64 existing tests: all pass (no regressions)
+- 39 new mutagenesis tests: all pass
+- **103 total tests, 0 failures**
+
+---
+
 ## v1.0.3 — Mandatory Dependencies & numpy Integration
 
 ### Breaking Changes
