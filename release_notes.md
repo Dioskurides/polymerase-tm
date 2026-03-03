@@ -1,3 +1,28 @@
+## v1.0.2 — CLI PCR Protocol & Code Quality
+
+### New Features
+- **PCR cycling protocol always shown for primer pairs:** The CLI now automatically generates and displays a full PCR cycling protocol whenever two primers are provided — no `--template` required. Extension time defaults to 30 s without a template; with `--template`, the amplicon length is auto-detected and extension time is calculated from the polymerase's extension rate.
+- **Buffer/salt override in PCR protocol:** `pcr_protocol()` now accepts `buffer` and `salt_mM` parameters. The CLI correctly passes `--buffer` and `--salt` overrides through to the protocol, ensuring the displayed Ta matches the protocol's annealing temperature.
+- **Buffer/salt display in CLI output:** When `--buffer` or `--salt` is specified, the values are shown in the output for both single-primer and primer-pair modes.
+
+### Bug Fixes
+- **Critical: CLI crash with touchdown protocols** — Fixed `ValueError` on `{step['temp']:>2d}` when touchdown annealing produces a string temp like `"75 -> 72"`. Now handles both int and string temperature values.
+- **Input validation in `tm()` / `calc_nn_raw()`** — Empty sequences, invalid characters (non-ATGC), unknown polymerase keys, and zero/negative salt concentrations now raise descriptive `ValueError` instead of cryptic `KeyError`/`IndexError`/`ZeroDivisionError`.
+- **CLI DNA validation** — Invalid primer characters are caught before computation with a helpful error message.
+- **CLI edge-case warnings** — `--template` and `--dmso-check` with a single primer now print a warning instead of being silently ignored.
+
+### Code Quality
+- Removed unused imports: `math` from constants.py, `os` from gel.py, `Bio.Seq.Seq` from dmso.py.
+- Removed dead code: unused `rc` variable in `restriction_scan()`.
+- Fixed misleading comment in `gibson_overlaps()` ("50 nM" → uses polymerase default).
+- Fixed `list_polymerases()` docstring (`conc_nM` → `primer_conc_nM`).
+- Fixed `plot_virtual_gel()` docstring (documents `ImportError` raise instead of `False` return).
+- Updated README API table: `fragments` → `amplicon_lengths`, `ladder` → `ladder_name`.
+- Modernized type hints in gel.py: `Dict`/`List`/`Tuple` → `dict`/`list`/`tuple`.
+- 67 tests passing.
+
+---
+
 ## v1.0.1 — Hairpin NN & Touchdown PCR
 
 ### New Features

@@ -160,7 +160,7 @@ polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA
 polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
 # Different polymerase
-polymerase-tm --polymerase taq ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
+polymerase-tm -p taq ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
 # Override buffer (e.g. when not using master mix)
 polymerase-tm --buffer thermopol ATGTCCCTGCTCTTCTCTCGATGCAA
@@ -172,7 +172,7 @@ polymerase-tm --salt 50 ATGTCCCTGCTCTTCTCTCGATGCAA
 polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
 # DMSO analysis with template
-polymerase-tm --dmso-check ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.gbk
+polymerase-tm --dmso-check --template plasmid.gbk FWD_SEQ REV_SEQ
 
 # Generate PCR Cycler Protocol & Virtual Agarose Gel Plot
 polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.gbk --plot-gel out_gel.png
@@ -190,9 +190,6 @@ polymerase-tm --plot-gel topologies.png --plot-gel-sizes 3000 3000 3000 --topolo
 polymerase-tm --list
 polymerase-tm --list-buffers
 
-# DMSO analysis with template
-polymerase-tm --dmso-check --template template.gbk FWD_SEQ REV_SEQ
-
 # Version
 polymerase-tm --version
 ```
@@ -204,10 +201,10 @@ polymerase-tm --version
 | `tm(seq, polymerase, buffer, salt_mM)` | Melting temperature for one primer |
 | `ta(seq1, seq2, polymerase, dmso_pct, buffer, salt_mM)` | Annealing temperature for a primer pair |
 | `list_polymerases()` | List all 22 supported polymerases |
-| `list_buffers()` | List all 15 NEB buffers with salt concentrations |
+| `list_buffers()` | List all 17 NEB buffers with salt concentrations |
 | `batch_tm(sequences, polymerase)` | Batch Tm for multiple sequences |
 | `check_pair(fwd, rev, polymerase)` | Pair compatibility + additive recommendation |
-| `pcr_protocol(fwd, rev, polymerase, amplicon_length, touchdown)` | Full PCR cycling protocol (auto-touchdown) |
+| `pcr_protocol(fwd, rev, polymerase, template, amplicon_length)` | Full PCR cycling protocol (auto-touchdown when Tm diff > 3 degC) |
 | `optimal_binding_length(seq, target_tm, polymerase)` | Find shortest binding region for target Tm |
 | `reverse_complement(seq)` | DNA reverse complement |
 | `from_csv(path, polymerase)` | Read primer pairs from CSV, compute Tm/Ta |
@@ -218,11 +215,11 @@ polymerase-tm --version
 | `primer_quality(seq)` | Quality score 0-100 with issues list |
 | `find_hairpins(seq)` | Detect hairpin stem-loops with NN Tm |
 | `primer_hairpin(seq)` | Hairpin scan tuned for primer-length sequences |
-| `additive_recommendation(fwd, rev)` | DMSO / GC Enhancer recommendation |
-| `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
+| `additive_recommendation(fwd, rev, polymerase)` | DMSO / GC Enhancer recommendation |
+| `dmso_recommendation(fwd_bind, rev_bind, template_seq, template_file)` | Full DMSO/additive analysis |
 | `print_dmso_report(report)` | Pretty-print a DMSO analysis report |
 | `gc_content(seq)` | GC content as fraction |
-| `plot_virtual_gel(fragments, ladder, ...)` | Simulated agarose gel image (requires `[viz]`) |
+| `plot_virtual_gel(amplicon_lengths, ladder_name, agarose_pct, ...)` | Simulated agarose gel image (requires `[viz]`) |
 
 > **Buffer / salt override:** `tm()` and `ta()` accept optional `buffer` (NEB buffer name) or `salt_mM` (direct mM value) to override the polymerase default. Priority: `salt_mM` > `buffer` > polymerase default.
 

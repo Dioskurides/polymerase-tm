@@ -11,7 +11,7 @@ examples:
   Single primer Tm (default: Q5 polymerase):
     polymerase-tm ATCGATCGATCG
 
-  Primer pair Ta:
+  Primer pair Ta + PCR protocol:
     polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
   Different polymerase:
@@ -26,34 +26,23 @@ examples:
   Ta with 3%% DMSO correction:
     polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
+  PCR protocol with template (auto amplicon length & extension time):
+    polymerase-tm FWD_SEQ REV_SEQ --template plasmid.gbk
+
   DMSO analysis with GenBank template:
     polymerase-tm --dmso-check --template plasmid.gbk FWD_SEQ REV_SEQ
+
+  Virtual agarose gel:
+    polymerase-tm FWD_SEQ REV_SEQ --template plasmid.gbk --plot-gel gel.png
+    polymerase-tm --plot-gel gel.png --ladder 100bp --plot-gel-sizes 150 400
+    polymerase-tm --plot-gel gel.png --plot-gel-sizes 3000 3000 --topology coiled nicked
+
+  Gel physics (custom agarose/voltage/time):
+    polymerase-tm --plot-gel gel.png --plot-gel-sizes 1500 --agarose 1.5 --voltage 110 --time 90
 
   List all supported polymerases / buffers:
     polymerase-tm --list
     polymerase-tm --list-buffers
-
-python API (new in v0.5):
-  from polymerase_tm import primer_dimer, restriction_scan, primer_quality
-  from polymerase_tm import gibson_overlaps, list_buffers, RESTRICTION_ENZYMES
-
-  # Buffer / salt override
-  tm(seq, buffer="thermopol")    # NEB buffer name
-  tm(seq, salt_mM=50)            # direct mM value
-
-  # Primer dimer check
-  primer_dimer(fwd, rev)  -> {risk_level, max_score, ...}
-
-  # Restriction scan (~120 NEB enzymes, or pass names/custom dict)
-  restriction_scan(seq)                            # all enzymes
-  restriction_scan(seq, enzymes=["EcoRI","BamHI"]) # by name
-  restriction_scan(seq, enzymes={"My": "AACGTT"})  # custom
-
-  # Primer quality score (0-100)
-  primer_quality(seq)  -> {score, grade, issues, ...}
-
-  # Gibson/HiFi Assembly overlap primer design
-  gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)
 
 algorithm:
   Tm:  SantaLucia (1998) nearest-neighbor + Owczarzy (2004) salt correction
@@ -215,7 +204,7 @@ def main(argv: list[str] | None = None) -> None:
         "--list-buffers",
         action="store_true",
         dest="list_buffers",
-        help="List all 15 NEB buffers with their effective salt concentrations.",
+        help="List all 17 NEB buffers with their effective salt concentrations.",
     )
     from polymerase_tm import __version__  # type: ignore
     parser.add_argument(
@@ -283,7 +272,22 @@ def main(argv: list[str] | None = None) -> None:
     seq1 = args.primers[0].strip().upper()
     poly = args.polymerase
 
+    # Validate DNA sequences
+    for i, seq in enumerate(args.primers, 1):
+        invalid = set(seq.strip().upper()) - set("ATGC")
+        if invalid:
+            print(
+                f"\n  [ERROR] Primer {i} contains invalid character(s): "
+                f"{', '.join(sorted(invalid))}.\n"
+                f"  Only A, T, G, C are allowed (binding region only, no overhangs).\n"
+            )
+            sys.exit(1)
+
     if len(args.primers) == 1:
+        if args.template:
+            print("\n  [WARNING] --template is ignored for single-primer Tm calculation.\n")
+        if args.dmso_check:
+            print("\n  [WARNING] --dmso-check requires a primer pair. Ignored.\n")
         # Single primer -- just Tm
         t = tm(seq1, polymerase=poly, buffer=args.buffer, salt_mM=args.salt)
         gc = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
@@ -291,6 +295,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  Length:     {len(seq1)} nt")
         print(f"  GC:         {gc:.1f} %")
         print(f"  Polymerase: {poly}")
+        if args.buffer:
+            print(f"  Buffer:     {args.buffer}")
+        if args.salt:
+            print(f"  Salt:       {args.salt} mM")
         print(f"  Tm:         {t} degC\n")
 
     elif len(args.primers) >= 2:
@@ -306,6 +314,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  Primer 2:   {seq2}")
         print(f"              {len(seq2)} nt, GC {gc2:.1f} %, Tm = {t2} degC")
         print(f"  Polymerase: {poly}")
+        if args.buffer:
+            print(f"  Buffer:     {args.buffer}")
+        if args.salt:
+            print(f"  Salt:       {args.salt} mM")
         if args.dmso > 0:
             print(f"  DMSO:       {args.dmso} %")
         print(f"  Ta:         {result_ta} degC")
@@ -324,73 +336,78 @@ def main(argv: list[str] | None = None) -> None:
             
         print()
 
-        # Generate PCR protocol if template is provided
+        # Generate PCR protocol (always for primer pairs; template is optional)
+        template_seq = None
+        template_topology = "linear"
+        
         if args.template:
             try:
                 from Bio import SeqIO  # type: ignore
                 record = SeqIO.read(args.template, "genbank")
                 template_seq = str(record.seq)
-                
                 template_topology = record.annotations.get("topology", "linear")
-                
-                protocol = pcr_protocol(seq1, seq2, polymerase=poly, dmso_pct=args.dmso, template=template_seq)
-                amp_len = protocol.get("amplicon_length")
-                
-                print(f"  [PCR CYCLING PROTOCOL]")
-                if amp_len:
-                    print(f"  Expected Amplicon: {amp_len} bp (linear)")
-                else:
-                    template_len = len(template_seq)
-                    print(f"  Expected Amplicon: Not found (check primer orientation/binding)")
-                    print(f"  Template Size: {template_len} bp ({template_topology})")
-                
-                for step in protocol["cycling"]:
-                    print(f"    - {step['step']:20s} {step['temp']:>2d} degC, {step['time']}")
-                print(f"  Total Time: ~{protocol['total_time_min']} min\n")
-                
-                # Check for gel plot request
-                sizes_to_plot = []
-                tops_to_plot = []
-                
-                if amp_len:
-                    sizes_to_plot.append(amp_len)
-                    tops_to_plot.append("linear")  # PCR products are always linear
-                else:
-                    sizes_to_plot.append(len(template_seq))
-                    # Biopython uses "circular", map to our "coiled" for plasmids
-                    tops_to_plot.append("coiled" if template_topology == "circular" else template_topology)
-                    
-                if getattr(args, "plot_gel_sizes", None):
-                    sizes_to_plot.extend(args.plot_gel_sizes)
-                    
-                    # Extend topologies from args, pad with linear if needed
-                    custom_tops = args.topology if hasattr(args, "topology") else []
-                    for i in range(len(args.plot_gel_sizes)):
-                        if i < len(custom_tops):
-                            tops_to_plot.append(custom_tops[i])
-                        else:
-                            tops_to_plot.append("linear")
-                    
-                if args.plot_gel and sizes_to_plot:
-                    try:
-                        plot_virtual_gel(
-                            sizes_to_plot, 
-                            ladder_name=args.ladder, 
-                            output_path=args.plot_gel,
-                            agarose_pct=args.agarose,
-                            voltage=args.voltage,
-                            time_min=args.time,
-                            gel_length_cm=args.gel_length,
-                            amplicon_topologies=tops_to_plot
-                        )
-                        print(f"  [GEL] Saved virtual gel to: {args.plot_gel} (Ladder: {args.ladder})\n")
-                    except ImportError as e:
-                        print(f"  [GEL] {e}\n")
-                
             except ImportError:
-                print("  [WARNING] Biopython is required to read template files. Install with: pip install polymerase-tm[bio]")
+                print("  [WARNING] Biopython is required to read template files. Install with: pip install polymerase-tm[bio]\n")
             except Exception as e:
-                print(f"  [WARNING] Could not read template file: {e}")
+                print(f"  [WARNING] Could not read template file: {e}\n")
+
+        protocol = pcr_protocol(seq1, seq2, polymerase=poly, dmso_pct=args.dmso,
+                                template=template_seq, buffer=args.buffer,
+                                salt_mM=args.salt)
+        amp_len = protocol.get("amplicon_length")
+        
+        print(f"  [PCR CYCLING PROTOCOL]")
+        if amp_len:
+            print(f"  Expected Amplicon: {amp_len} bp (linear)")
+        elif template_seq:
+            template_len = len(template_seq)
+            print(f"  Expected Amplicon: Not found (check primer orientation/binding)")
+            print(f"  Template Size: {template_len} bp ({template_topology})")
+        
+        for step in protocol["cycling"]:
+            temp = step['temp']
+            temp_str = f"{temp:>2d}" if isinstance(temp, (int, float)) else f"{temp}"
+            print(f"    - {step['step']:20s} {temp_str} degC, {step['time']}")
+        print(f"  Total Time: ~{protocol['total_time_min']} min\n")
+        
+        # Virtual gel (requires template or --plot-gel-sizes)
+        sizes_to_plot = []
+        tops_to_plot = []
+        
+        if amp_len:
+            sizes_to_plot.append(amp_len)
+            tops_to_plot.append("linear")  # PCR products are always linear
+        elif template_seq:
+            sizes_to_plot.append(len(template_seq))
+            # Biopython uses "circular", map to our "coiled" for plasmids
+            tops_to_plot.append("coiled" if template_topology == "circular" else template_topology)
+            
+        if getattr(args, "plot_gel_sizes", None):
+            sizes_to_plot.extend(args.plot_gel_sizes)
+            
+            # Extend topologies from args, pad with linear if needed
+            custom_tops = args.topology if hasattr(args, "topology") else []
+            for i in range(len(args.plot_gel_sizes)):
+                if i < len(custom_tops):
+                    tops_to_plot.append(custom_tops[i])
+                else:
+                    tops_to_plot.append("linear")
+            
+        if args.plot_gel and sizes_to_plot:
+            try:
+                plot_virtual_gel(
+                    sizes_to_plot, 
+                    ladder_name=args.ladder, 
+                    output_path=args.plot_gel,
+                    agarose_pct=args.agarose,
+                    voltage=args.voltage,
+                    time_min=args.time,
+                    gel_length_cm=args.gel_length,
+                    amplicon_topologies=tops_to_plot
+                )
+                print(f"  [GEL] Saved virtual gel to: {args.plot_gel} (Ladder: {args.ladder})\n")
+            except ImportError as e:
+                print(f"  [GEL] {e}\n")
 
         if args.dmso_check:
             report = dmso_recommendation(

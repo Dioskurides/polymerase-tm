@@ -32,6 +32,14 @@ def calc_nn_raw(seq: str, primer_conc_nM: float = 500) -> float:
         Raw Tm in degrees Celsius (1 M NaCl reference state).
     """
     seq = seq.upper().strip()
+    if not seq:
+        raise ValueError("Primer sequence must not be empty.")
+    invalid = set(seq) - {"A", "T", "G", "C"}
+    if invalid:
+        raise ValueError(
+            f"Invalid character(s) in primer sequence: {', '.join(sorted(invalid))}. "
+            "Only A, T, G, C are allowed (no overhangs, no IUPAC ambiguity codes)."
+        )
     dH = 0.0
     dS = 0.0
     for i in range(len(seq) - 1):
@@ -67,6 +75,8 @@ def owczarzy_correction(tm_raw: float, seq: str, salt_mM: float) -> float:
         Salt-corrected Tm in degrees Celsius.
     """
     fgc = (seq.upper().count("G") + seq.upper().count("C")) / len(seq)
+    if salt_mM <= 0:
+        raise ValueError(f"Salt concentration must be positive, got {salt_mM} mM.")
     salt_M = salt_mM / 1000.0
     ln_s = math.log(salt_M)
     corr = (4.29e-5 * fgc - 3.95e-5) * ln_s + 9.40e-6 * ln_s ** 2
@@ -126,7 +136,7 @@ def tm(
         Key into ``POLYMERASES``. Default ``"q5"``.
     buffer : str, optional
         NEB buffer name to override the polymerase default.
-        Use ``list_buffers()`` to see all 15 available buffers.
+        Use ``list_buffers()`` to see all 17 available buffers.
     salt_mM : int, optional
         Direct salt concentration (mM) override. Takes priority
         over both ``polymerase`` and ``buffer``.
@@ -142,6 +152,12 @@ def tm(
     >>> tm("ATCGATCGATCG", buffer="thermopol") # Thermopol buffer
     >>> tm("ATCGATCGATCG", salt_mM=50)         # custom 50 mM
     """
+    polymerase = polymerase.lower().replace(" ", "_").replace("-", "_")
+    if polymerase not in POLYMERASES:
+        avail = ", ".join(sorted(POLYMERASES.keys()))
+        raise ValueError(
+            f"Unknown polymerase '{polymerase}'. Available: {avail}"
+        )
     poly = POLYMERASES[polymerase]
     salt = _resolve_salt(polymerase, buffer, salt_mM)
     conc = poly["conc"]
@@ -201,7 +217,7 @@ def list_polymerases() -> list[dict]:
     Returns
     -------
     list[dict]
-        Each dict has keys: key, description, buffer_salt_mM, conc_nM, ta_rule.
+        Each dict has keys: key, description, buffer_salt_mM, primer_conc_nM, ta_rule.
     """
     out = []
     for key, poly in POLYMERASES.items():
