@@ -52,6 +52,12 @@ examples:
     polymerase-tm --sdm --mode ins --mutation 10:AAAAAA TEMPLATE_SEQ
     polymerase-tm --sdm --mutation T2A --genetic-code 2 TEMPLATE_SEQ
 
+  Universal CSV Batching:
+    polymerase-tm --csv pairs.csv --csv-action check_pair
+    polymerase-tm --csv primers.csv --csv-action tm --csv-out tms_out.csv
+    polymerase-tm --csv mutations.csv --csv-action sdm
+    polymerase-tm --csv protocols.csv --csv-action protocol
+
 algorithm:
   Tm:  SantaLucia (1998) nearest-neighbor + Owczarzy (2004/2008) salt correction
   Ta:  Polymerase-specific rules (e.g. Q5: min(Tm1,Tm2)+1, cap 72 degC)
@@ -82,9 +88,10 @@ def main(argv: list[str] | None = None) -> None:
     # File input for template is documented on the positional argument itself
     parser.add_argument(
         "primers",
-        nargs="+",
+        nargs="*",
         help="Standard mode: FWD_SEQ REV_SEQ [TEMPLATE_SEQ]. "
-             "SDM mode: TEMPLATE_SEQ (can be a raw sequence, or path to a .gb/gbk/.fasta file).",
+             "SDM mode: TEMPLATE_SEQ (can be a file path). "
+             "Omit entirely if leveraging --csv.",
     )
     parser.add_argument(
         "-p", "--polymerase",
@@ -275,6 +282,29 @@ def main(argv: list[str] | None = None) -> None:
              "can wrap around the ends.",
     )
 
+    # --- CSV Batching ---
+    csv_group = parser.add_argument_group(
+        "batch processing (CSV)"
+    )
+    csv_group.add_argument(
+        "--csv",
+        default=None,
+        metavar="IN.csv",
+        help="Input CSV file for batch processing. Columns depend on the action.",
+    )
+    csv_group.add_argument(
+        "--csv-out",
+        default="results.csv",
+        metavar="OUT.csv",
+        help="Output CSV filename for batch results. Default: results.csv",
+    )
+    csv_group.add_argument(
+        "--csv-action",
+        choices=["check_pair", "tm", "protocol", "sdm"],
+        default="check_pair",
+        help="Batch action to execute on the CSV file. Default: check_pair.",
+    )
+
     from polymerase_tm import __version__  # type: ignore
     parser.add_argument(
         "--version",
@@ -283,6 +313,34 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     args = parser.parse_args(argv)
+
+    if not args.primers and not args.csv:
+        parser.error("Must provide either positional primers/template or --csv.")
+
+    # --- Handle CSV Batch mode ---
+    if args.csv:
+        from polymerase_tm import from_csv, to_csv  # type: ignore
+        print(f"\n  [CSV Batch] Action: {args.csv_action} | Input: {args.csv}")
+        try:
+            results = from_csv(
+                args.csv, 
+                action=args.csv_action, 
+                polymerase=args.polymerase,
+                buffer=args.buffer,
+                salt_mM=args.salt,
+                dmso_pct=args.dmso,
+                orf_start=args.orf_start,
+                genetic_code=args.genetic_code,
+                codon_mode=args.codon_mode,
+                confine_to_tails=args.confine_to_tails,
+                circular=not args.linear,
+            )
+            to_csv(results, args.csv_out)
+            print(f"  [CSV Batch] Success! {len(results)} rows written to {args.csv_out}\n")
+        except Exception as e:
+            print(f"\n  [ERROR CSV Batch] {e}\n")
+            sys.exit(1)
+        return
 
     # --- Handle SDM mode ---
     if args.sdm:
@@ -434,7 +492,7 @@ def main(argv: list[str] | None = None) -> None:
         if amp_len:
             print(f"  Expected Amplicon: {amp_len} bp (linear)")
         elif template_seq:
-            template_len = len(template_seq)
+            template_len = len(template_seq) if template_seq else 0
             print(f"  Expected Amplicon: Not found (check primer orientation/binding)")
             print(f"  Template Size: {template_len} bp ({template_topology})")
         

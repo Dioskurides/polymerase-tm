@@ -124,9 +124,17 @@ for step in protocol["cycling"]:
 # Final Extension            72 degC  2 min
 # Hold                        4 degC  indefinite
 
-# CSV pipeline: read primers, compute everything, write results
-results = from_csv("primers.csv")  # expects columns: name, fwd, rev
+# Universal CSV pipeline: arbitrary operations on complete datasets
+results = from_csv("primers.csv", action="check_pair")  # Compute Ta/compatibility
 to_csv(results, "results_with_tm.csv")
+
+# SDM automated batch design (expects template and mutation columns)
+sdm_results = from_csv("mutations.csv", action="sdm")
+to_csv(sdm_results, "designed_primers.csv")
+
+# PCR Protocol generation for plate-based setups
+proto_results = from_csv("plate_1.csv", action="protocol")
+to_csv(proto_results, "robot_cycling_protocols.csv")
 ```
 
 ### Site-Directed Mutagenesis (NEB Base Changer)
@@ -218,6 +226,12 @@ polymerase-tm --sdm --mutation "T2A K5R" --codon-mode parsimony TEMPLATE_SEQ
 polymerase-tm --sdm --mode del --mutation 10:3 TEMPLATE_SEQ
 polymerase-tm --sdm --mode ins --mutation 10:AAAAAA TEMPLATE_SEQ
 polymerase-tm --sdm --mutation T2A --genetic-code 2 TEMPLATE_SEQ
+
+# Batch Processing entire CSV files natively
+polymerase-tm --csv pairs.csv --csv-action check_pair
+polymerase-tm --csv primers.csv --csv-action tm --csv-out tms_out.csv
+polymerase-tm --csv mutations.csv --csv-action sdm
+polymerase-tm --csv protocols.csv --csv-action protocol
 ```
 
 ## API Reference
