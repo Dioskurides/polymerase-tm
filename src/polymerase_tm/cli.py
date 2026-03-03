@@ -17,18 +17,29 @@ examples:
   Different polymerase:
     polymerase-tm -p taq ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
+  Override buffer (e.g. when not using master mix):
+    polymerase-tm --buffer thermopol ATGTCCCTGCTCTTCTCTCGATGCAA
+
+  Direct salt concentration (mM):
+    polymerase-tm --salt 50 ATGTCCCTGCTCTTCTCTCGATGCAA
+
   Ta with 3%% DMSO correction:
     polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
   DMSO analysis with GenBank template:
     polymerase-tm --dmso-check --template plasmid.gbk FWD_SEQ REV_SEQ
 
-  List all supported polymerases:
+  List all supported polymerases / buffers:
     polymerase-tm --list
+    polymerase-tm --list-buffers
 
 python API (new in v0.5):
   from polymerase_tm import primer_dimer, restriction_scan, primer_quality
-  from polymerase_tm import gibson_overlaps, RESTRICTION_ENZYMES
+  from polymerase_tm import gibson_overlaps, list_buffers, RESTRICTION_ENZYMES
+
+  # Buffer / salt override
+  tm(seq, buffer="thermopol")    # NEB buffer name
+  tm(seq, salt_mM=50)            # direct mM value
 
   # Primer dimer check
   primer_dimer(fwd, rev)  -> {risk_level, max_score, ...}
@@ -118,10 +129,36 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
     parser.add_argument(
+        "--buffer",
+        default=None,
+        metavar="NAME",
+        help=(
+            "NEB buffer name to override the polymerase default. "
+            "Use --list-buffers to see all available buffer names."
+        ),
+    )
+    parser.add_argument(
+        "--salt",
+        type=int,
+        default=None,
+        metavar="mM",
+        help=(
+            "Direct monovalent salt concentration in mM. Overrides "
+            "both --polymerase and --buffer. Useful when using a "
+            "non-NEB buffer or custom reaction conditions."
+        ),
+    )
+    parser.add_argument(
         "--list",
         action="store_true",
         dest="list_poly",
         help="List all 22 supported NEB polymerases with their buffer and Ta parameters.",
+    )
+    parser.add_argument(
+        "--list-buffers",
+        action="store_true",
+        dest="list_buffers",
+        help="List all 15 NEB buffers with their effective salt concentrations.",
     )
     parser.add_argument(
         "--version",
@@ -135,9 +172,18 @@ def main(argv: list[str] | None = None) -> None:
         tm,
         ta,
         list_polymerases,
+        list_buffers,
         dmso_recommendation,
         print_dmso_report,
     )
+
+    if args.list_buffers:
+        print(f"\n  {'Buffer':25s} {'Salt (mM)':>10s}")
+        print("  " + "-" * 38)
+        for b in list_buffers():
+            print(f"  {b['name']:25s} {b['salt_mM']:>7d} mM")
+        print()
+        return
 
     if args.list_poly:
         print(f"\n  {'Key':<25s} {'Salt':>6s} {'Conc':>6s}  {'Ta rule':<22s}  Description")
@@ -160,7 +206,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if len(args.primers) == 1:
         # Single primer -- just Tm
-        t = tm(seq1, polymerase=poly)
+        t = tm(seq1, polymerase=poly, buffer=args.buffer, salt_mM=args.salt)
         gc = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
         print(f"\n  Primer:     {seq1}")
         print(f"  Length:     {len(seq1)} nt")
@@ -170,7 +216,8 @@ def main(argv: list[str] | None = None) -> None:
 
     elif len(args.primers) >= 2:
         seq2 = args.primers[1].strip().upper()
-        result_ta, t1, t2 = ta(seq1, seq2, polymerase=poly, dmso_pct=args.dmso)
+        result_ta, t1, t2 = ta(seq1, seq2, polymerase=poly, dmso_pct=args.dmso,
+                               buffer=args.buffer, salt_mM=args.salt)
 
         gc1 = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
         gc2 = (seq2.count("G") + seq2.count("C")) / len(seq2) * 100

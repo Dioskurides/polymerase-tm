@@ -17,7 +17,7 @@ Exact Python reproduction of the [NEB Tm Calculator](https://tmcalculator.neb.co
 - **Smart primer design** -- find the optimal binding length for a target Tm.
 - **Primer dimer detection** -- checks 3'-end complementarity and self-dimer risk.
 - **Gibson Assembly overlap design** -- generates full primers with overhangs for Gibson/HiFi Assembly.
-- **Restriction site scanning** -- scans primers for 14 common restriction enzyme sites (customizable).
+- **Restriction site scanning** -- scans primers for ~120 NEB restriction enzyme sites (accepts enzyme names or custom dict).
 - **Primer quality scoring** -- comprehensive 0-100 score evaluating GC clamp, runs, repeats, hairpins.
 - **DMSO analysis** -- analyses primer hairpins, amplicon GC content, GC-rich hotspots, and template secondary structures.
 - **CLI tool** (`polymerase-tm`) for quick calculations from the terminal.
@@ -38,7 +38,7 @@ mamba install -c conda-forge polymerase-tm
 ### Python API
 
 ```python
-from polymerase_tm import tm, ta
+from polymerase_tm import tm, ta, list_buffers
 
 # Single primer Tm (Q5, 500 nM)
 print(tm("ATGTCCCTGCTCTTCTCTCGATGCAA"))          # 72
@@ -53,6 +53,16 @@ print(f"Ta = {result_ta}, Fwd Tm = {tm_fwd}, Rev Tm = {tm_rev}")
 
 # Different polymerase
 print(tm("ATGTCCCTGCTCTTCTCTCGATGCAA", polymerase="taq"))
+
+# Override buffer (when not using default master mix)
+print(tm("ATGTCCCTGCTCTTCTCTCGATGCAA", polymerase="taq", buffer="thermopol"))
+
+# Direct salt concentration (mM)
+print(tm("ATGTCCCTGCTCTTCTCTCGATGCAA", salt_mM=50))
+
+# List all available buffers
+for b in list_buffers():
+    print(f"{b['name']:20s} {b['salt_mM']:>4d} mM")
 
 # Ta with 3% DMSO
 ta_dmso, _, _ = ta("ATGTCCCTGCTCTTCTCTCGATGCAA", "GTGCCTCCGAGCCAGCACC", dmso_pct=3)
@@ -139,11 +149,18 @@ polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 # Different polymerase
 polymerase-tm --polymerase taq ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
+# Override buffer (e.g. when not using master mix)
+polymerase-tm --buffer thermopol ATGTCCCTGCTCTTCTCTCGATGCAA
+
+# Direct salt concentration override
+polymerase-tm --salt 50 ATGTCCCTGCTCTTCTCTCGATGCAA
+
 # With DMSO correction
 polymerase-tm --dmso 3 ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC
 
-# List all polymerases
+# List all polymerases / buffers
 polymerase-tm --list
+polymerase-tm --list-buffers
 
 # DMSO analysis with template
 polymerase-tm --dmso-check --template template.gbk FWD_SEQ REV_SEQ
@@ -156,8 +173,10 @@ polymerase-tm --version
 
 | Function | Description |
 |:---|:---|
-| `tm(seq, polymerase)` | Melting temperature for one primer |
-| `ta(seq1, seq2, polymerase, dmso_pct)` | Annealing temperature for a primer pair |
+| `tm(seq, polymerase, buffer, salt_mM)` | Melting temperature for one primer |
+| `ta(seq1, seq2, polymerase, dmso_pct, buffer, salt_mM)` | Annealing temperature for a primer pair |
+| `list_polymerases()` | List all 22 supported polymerases |
+| `list_buffers()` | List all 15 NEB buffers with salt concentrations |
 | `batch_tm(sequences, polymerase)` | Batch Tm for multiple sequences |
 | `check_pair(fwd, rev, polymerase)` | Pair compatibility + additive recommendation |
 | `pcr_protocol(fwd, rev, polymerase, amplicon_length)` | Full PCR cycling protocol |
@@ -165,13 +184,14 @@ polymerase-tm --version
 | `reverse_complement(seq)` | DNA reverse complement |
 | `from_csv(path, polymerase)` | Read primer pairs from CSV, compute Tm/Ta |
 | `to_csv(results, path)` | Write results to CSV |
-| `list_polymerases()` | List all 22 supported polymerases |
 | `primer_dimer(fwd, rev)` | Check 3' complementarity / dimer risk |
 | `gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)` | Design Gibson/HiFi Assembly primers |
 | `restriction_scan(seq, enzymes)` | Scan for restriction sites (~120 NEB enzymes, accepts name list or dict) |
 | `primer_quality(seq)` | Quality score 0-100 with issues list |
 | `dmso_recommendation(fwd, rev, template)` | Full DMSO/additive analysis |
 | `gc_content(seq)` | GC content as fraction |
+
+> **Buffer / salt override:** `tm()` and `ta()` accept optional `buffer` (NEB buffer name) or `salt_mM` (direct mM value) to override the polymerase default. Priority: `salt_mM` > `buffer` > polymerase default.
 
 ## Algorithm
 
@@ -215,6 +235,21 @@ polymerase-tm --version
 This package is not affiliated with New England Biolabs (NEB).
 The algorithm was recreated from the publicly available JavaScript source of the [NEB Tm Calculator](https://tmcalculator.neb.com/) for research and educational purposes.
 Always verify critical calculations against the official tool.
+
+## Module Structure
+
+```
+polymerase_tm/
+├── __init__.py      # Re-exports (backward compatible)
+├── constants.py     # NN_PARAMS, BUFFERS, POLYMERASES
+├── core.py          # tm(), ta(), list_buffers(), list_polymerases()
+├── dmso.py          # DMSO analysis, hairpins, GC analysis
+├── batch.py         # batch_tm(), pcr_protocol(), CSV I/O
+├── analysis.py      # restriction_scan(), primer_dimer(), primer_quality()
+└── cli.py           # Command-line interface
+```
+
+All functions are re-exported from `__init__.py` — `from polymerase_tm import tm` works as before.
 
 ## License
 
