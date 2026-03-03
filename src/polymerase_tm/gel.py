@@ -85,9 +85,9 @@ def _get_migration_distance_cm(bp: int, agarose_pct: float, voltage: float, time
         base_dist = -3.8 * x + 18.96 
         
     # 2. Voltage and Time scaling (linear)
-    # Applying a base calibration factor of 0.90 to simulate 1X TAE buffer, 
-    # which generally exhibits ~10% slower migration velocities compared to 1X TBE.
-    vt_factor = (voltage / 100.0) * (time_min / 60.0) * 0.90
+    # Applying a base calibration factor of 0.45 to simulate 1X TAE buffer, 
+    # which generally exhibits slower migration velocities compared to 1X TBE.
+    vt_factor = (voltage / 100.0) * (time_min / 60.0) * 0.45
     
     # 3. Agarose retardation 
     # Empirical Ferguson scaling: High MW fragments retard much faster in denser gels
@@ -147,7 +147,7 @@ def plot_virtual_gel(
         x_center = 2.0 + (i * 2.0)  # Start the first lane further to the right
         lane_xs.append(x_center)
         # Background lane
-        ax.add_patch(Rectangle((x_center - 0.5, 0), 1, 1, facecolor="#1a1a1a", alpha=0.5, zorder=1))
+        ax.add_patch(Rectangle((x_center - 0.5, 0), 1, gel_length_cm + 1.0, facecolor="#1a1a1a", alpha=0.5, zorder=1))
         # Well
         ax.add_patch(Rectangle((x_center - 0.35, -0.2), 0.7, 0.2, facecolor="#000000", edgecolor="#333333", zorder=2))
 
