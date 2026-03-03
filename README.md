@@ -164,6 +164,9 @@ polymerase-tm --dmso-check ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --temp
 # Generate PCR Cycler Protocol & Virtual Agarose Gel Plot
 polymerase-tm ATGTCCCTGCTCTTCTCTCGATGCAA GTGCCTCCGAGCCAGCACC --template plasmid.gbk --plot-gel out_gel.png
 
+# Generate a standalone virtual gel with multiple custom fragments and a 100bp ladder
+polymerase-tm --plot-gel out_multi.png --ladder 100bp --plot-gel-sizes 150 200 400
+
 # List all polymerases / buffers
 polymerase-tm --list
 polymerase-tm --list-buffers
