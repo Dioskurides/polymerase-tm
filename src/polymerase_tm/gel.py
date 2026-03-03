@@ -132,15 +132,17 @@ def plot_virtual_gel(
     # Determine standard 12cm mini-gel layout
     gel_length_cm = 12.0
 
+    # Set up the plot width dynamically based on number of lanes
     num_lanes = 1 + len(amplicons)
-    plot_width = max(3, num_lanes * 1.5)
+    plot_width = max(4, num_lanes * 2.0)
     
     sns.set_theme(style="dark", rc={"axes.facecolor": "#111111", "figure.facecolor": "#222222"})
     fig, ax = plt.subplots(figsize=(plot_width, 8))
     
+    # Draw lanes
     lane_xs = []
     for i in range(num_lanes):
-        x_center = 1.0 + (i * 2.0)
+        x_center = 2.0 + (i * 2.0)  # Start the first lane further to the right
         lane_xs.append(x_center)
         # Background lane
         ax.add_patch(Rectangle((x_center - 0.5, 0), 1, 1, facecolor="#1a1a1a", alpha=0.5, zorder=1))
@@ -172,7 +174,8 @@ def plot_virtual_gel(
                                facecolor=band_color, alpha=0.9, zorder=5))
                                
         # Explicitly requested by user: ALL fragments of the ladder should have their size annotated
-        label_text = f"{bp/1000:.1f}k" if bp >= 1000 else f"{bp}"
+        bp_label = f"{bp/1000:.1f}k" if bp >= 1000 else f"{bp}"
+        label_text = f"{bp_label} ({dist:.1f} cm)"
         font_weight = "bold" if intensity > 1.0 else "normal"
         ax.text(lane1_x - band_width/2 - 0.1, dist, label_text, 
                 color="#cccccc", ha="right", va="center", fontsize=8, fontweight=font_weight)
@@ -200,10 +203,11 @@ def plot_virtual_gel(
         ax.text(lane_x + band_width/2 + 0.1, dist_amp, f"{amp_len} bp", 
                 color="#ffffff", ha="left", va="center", fontsize=10, fontweight="bold")
     
-    max_x = max(lane_xs) + 1.0
+    max_x = max(lane_xs) + 2.0
     ax.set_xlim(0, max_x)
-    # Print the physical dimensions using invert Y so 0 is at top
-    ax.set_ylim(gel_length_cm + 0.5, -0.5)
+    # Print the physical dimensions using invert Y so 0 is at top.
+    # We add 1.0 cm padding at the bottom so fast fragments (like 100bp @ 12.5cm) don't get cut off
+    ax.set_ylim(gel_length_cm + 1.0, -0.5)
     
     x_ticks = lane_xs
     x_labels = [ladder_label] + [f"Sample {i+1}" if len(amplicons) > 1 else "Sample" for i in range(len(amplicons))]
