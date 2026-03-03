@@ -623,57 +623,135 @@ def pcr_protocol(
 
 def from_csv(
     path: str,
+    action: str = "check_pair",
     polymerase: str = "q5",
     fwd_col: str = "fwd",
     rev_col: str = "rev",
+    seq_col: str = "seq",
+    template_col: str = "template",
+    mutation_col: str = "mutation",
+    mode_col: str = "mode",
     name_col: Optional[str] = "name",
     sep: str = ",",
+    **kwargs
 ) -> list[dict]:
-    """Read primer pairs from a CSV file and compute Tm/Ta for each.
+    """Read CSV file and pipeline rows to the requested package action.
 
     Parameters
     ----------
     path : str
         Path to the CSV file.
+    action : str
+        Pipeline action to perform: "check_pair" (default), "tm", "protocol", or "sdm".
     polymerase : str
-        Polymerase key.
-    fwd_col, rev_col : str
-        Column names for forward and reverse primer sequences.
+        Polymerase key (default "q5").
+    fwd_col, rev_col, seq_col, template_col, mutation_col : str
+        Column names mapping. 
     name_col : str or None
-        Optional column name for pair labels.
+        Optional column name for row labels.
     sep : str
         CSV delimiter (default ``","``).
+    **kwargs
+        Additional arguments passed directly to the underlying functions.
 
     Returns
     -------
     list[dict]
-        One dict per row with keys: ``name``, ``fwd``, ``rev``,
-        ``fwd_tm``, ``rev_tm``, ``ta``, ``tm_diff``, ``gc_fwd``,
-        ``gc_rev``, ``compatible``, ``warnings``.
-
-    Examples
-    --------
-    >>> results = from_csv("primers.csv", polymerase="q5")
-    >>> for r in results:
-    ...     print(f"{r['name']}: Ta={r['ta']} degC")
+        Output records formatted for to_csv().
     """
     import csv
+
+    valid_actions = ["check_pair", "tm", "protocol", "sdm"]
+    if action not in valid_actions:
+        raise ValueError(f"Unknown action '{action}'. Valid actions: {valid_actions}")
 
     results = []
     with open(path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f, delimiter=sep)
         for i, row in enumerate(reader):
-            fwd_seq = row.get(fwd_col, "").strip()
-            rev_seq = row.get(rev_col, "").strip()
-            name = row.get(name_col, f"pair_{i+1}") if name_col else f"pair_{i+1}"
+            name = row.get(name_col, f"row_{i+1}") if name_col else f"row_{i+1}"
 
-            if not fwd_seq or not rev_seq:
-                results.append({"name": name, "error": "Missing sequence"})
-                continue
+            if action == "check_pair":
+                fwd_seq = row.get(fwd_col, "").strip()
+                rev_seq = row.get(rev_col, "").strip()
+                if not fwd_seq or not rev_seq:
+                    results.append({"name": name, "error": "Missing fwd or rev sequence"})
+                    continue
+                pair_result = check_pair(fwd_seq, rev_seq, polymerase=polymerase, **kwargs)
+                pair_result["name"] = name
+                results.append(pair_result)
 
-            pair_result = check_pair(fwd_seq, rev_seq, polymerase=polymerase)
-            pair_result["name"] = name
-            results.append(pair_result)
+            elif action == "tm":
+                seq = row.get(seq_col, "").strip()
+                if not seq:
+                    results.append({"name": name, "error": "Missing seq sequence"})
+                    continue
+                from .core import tm
+                t = tm(seq, polymerase=polymerase, **kwargs)
+                gc = (seq.upper().count("G") + seq.upper().count("C")) / len(seq) * 100 if seq else 0
+                results.append({
+                    "name": name, "sequence": seq, "length": len(seq),
+                    "gc_pct": round(gc, 1), "tm": t
+                })
+
+            elif action == "protocol":
+                fwd_seq = row.get(fwd_col, "").strip()
+                rev_seq = row.get(rev_col, "").strip()
+                template = row.get(template_col, "").strip() or None
+                if not fwd_seq or not rev_seq:
+                    results.append({"name": name, "error": "Missing fwd or rev sequence"})
+                    continue
+                proto_result = pcr_protocol(fwd_seq, rev_seq, polymerase=polymerase, template=template, **kwargs)
+                proto_result["name"] = name
+                results.append(proto_result)
+
+            elif action == "sdm":
+                template = row.get(template_col, "").strip()
+                mutation = row.get(mutation_col, "").strip()
+                mode = row.get(mode_col, "point").strip().lower()
+
+                if not template or not mutation:
+                    results.append({"name": name, "error": "Missing template or mutation"})
+                    continue
+
+                from .mutagenesis import BaseChanger
+                # Extract genetic_code, orf_start, codon_mode etc. from kwargs if provided
+                changer_kwargs = {k: v for k, v in kwargs.items() if k in ["orf_start", "genetic_code", "circular", "codon_mode", "confine_to_tails", "dmso_pct"]}
+                changer = BaseChanger(template, **changer_kwargs)
+
+                try:
+                    res_raw = None
+                    if mode == "point":
+                        res_raw = changer.point_mutation(mutation)
+                    elif mode == "sub":
+                        parts = mutation.split(":")
+                        pos = int(parts[0])
+                        repl = parts[1]
+                        length = int(parts[2]) if len(parts) > 2 else len(repl)
+                        res_raw = changer.substitution(pos, repl, length)
+                    elif mode == "del":
+                        parts = mutation.split(":")
+                        pos = int(parts[0])
+                        length = int(parts[1])
+                        res_raw = changer.deletion(pos, length)
+                    elif mode == "ins":
+                        parts = mutation.split(":")
+                        pos = int(parts[0])
+                        insert = parts[1]
+                        res_raw = changer.insertion(pos, insert)
+                    else:
+                        raise ValueError(f"Unknown SDM mode: {mode}")
+
+                    res_list = res_raw if isinstance(res_raw, list) else [res_raw]
+                    
+                    for i, res in enumerate(res_list):
+                        out_name = name if len(res_list) == 1 else f"{name}_opt{i+1}"
+                        out = {"name": out_name, "mode": mode, "mutation": mutation}
+                        out.update({k: getattr(res, k) for k in vars(res) if not k.startswith("_")})
+                        results.append(out)
+
+                except Exception as e:
+                    results.append({"name": name, "mutation": mutation, "error": str(e)})
 
     return results
 
@@ -696,24 +774,33 @@ def to_csv(
 
     Examples
     --------
-    >>> results = from_csv("input.csv")
-    >>> to_csv(results, "output_with_tm.csv")
+    >>> results = from_csv("input.csv", action="sdm")
+    >>> to_csv(results, "output.csv")
     """
     import csv
 
     if not results:
         return
 
-    fieldnames = list(results[0].keys())
+    # Collect all possible keys (since some rows might have errors while others succeed)
+    fieldnames = []
+    for r in results:
+        for k in r.keys():
+            if k not in fieldnames:
+                fieldnames.append(k)
+
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=sep)
         writer.writeheader()
         for row in results:
-            # Flatten complex types to strings for CSV
             flat = {}
             for k, v in row.items():
+                if hasattr(v, "__dataclass_fields__"):
+                    from dataclasses import asdict
+                    v = asdict(v)
+                
                 if isinstance(v, list):
-                    flat[k] = "; ".join(str(x) for x in v)
+                    flat[k] = "; ".join(str(getattr(x, "__dict__", x)) for x in v)
                 elif isinstance(v, dict):
                     flat[k] = "; ".join(f"{dk}={dv}" for dk, dv in v.items())
                 else:

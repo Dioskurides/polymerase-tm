@@ -233,8 +233,8 @@ polymerase-tm --sdm --mutation T2A --genetic-code 2 TEMPLATE_SEQ
 | `pcr_protocol(fwd, rev, polymerase, template, amplicon_length)` | Full PCR cycling protocol (auto-touchdown when Tm diff > 3 degC) |
 | `optimal_binding_length(seq, target_tm, polymerase)` | Find shortest binding region for target Tm |
 | `reverse_complement(seq)` | DNA reverse complement |
-| `from_csv(path, polymerase)` | Read primer pairs from CSV, compute Tm/Ta |
-| `to_csv(results, path)` | Write results to CSV |
+| `from_csv(path, action, ...)` | Universal CSV batching (`action="check_pair"`, `"tm"`, `"protocol"`, `"sdm"`) |
+| `to_csv(results, path)` | Write flat stringified results to CSV |
 | `primer_dimer(fwd, rev)` | Check 3' complementarity / dimer risk |
 | `gibson_overlaps(fwd_bind, rev_bind, left_seq, right_seq)` | Design Gibson/HiFi Assembly primers |
 | `restriction_scan(seq, enzymes)` | Scan for restriction sites (~120 NEB enzymes, IUPAC support, accepts name list or dict) |
