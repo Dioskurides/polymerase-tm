@@ -262,7 +262,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.plot_gel and getattr(args, "plot_gel_sizes", None):
             try:
                 from polymerase_tm.gel import plot_virtual_gel  # type: ignore
-                success = plot_virtual_gel(
+                plot_virtual_gel(
                     args.plot_gel_sizes, 
                     ladder_name=args.ladder, 
                     output_path=args.plot_gel,
@@ -272,12 +272,9 @@ def main(argv: list[str] | None = None) -> None:
                     gel_length_cm=args.gel_length,
                     amplicon_topologies=args.topology
                 )
-                if success:
-                    print(f"\n  [GEL] Saved virtual gel to: {args.plot_gel}\n")
-                else:
-                    print(f"\n  [GEL] WARNING: Could not plot gel. Ensure seaborn and matplotlib are installed.\n")
-            except ImportError:
-                pass
+                print(f"\n  [GEL] Saved virtual gel to: {args.plot_gel}\n")
+            except ImportError as e:
+                print(f"\n  [GEL] {e}\n")
             sys.exit(0)
             
         parser.print_help()
@@ -314,8 +311,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  Ta:         {result_ta} degC")
 
         # Auto additive recommendation
-        from polymerase_tm import _additive_recommendation  # type: ignore
-        additive = _additive_recommendation(seq1, seq2, polymerase=poly)
+        from polymerase_tm import additive_recommendation  # type: ignore
+        additive = additive_recommendation(seq1, seq2, polymerase=poly)
         if additive["recommended"]:
             print(f"\n  [!] RECOMMENDATION: {additive['additive']} ({additive['concentration']})")
             for reason in additive["reasons"]:
@@ -375,23 +372,23 @@ def main(argv: list[str] | None = None) -> None:
                             tops_to_plot.append("linear")
                     
                 if args.plot_gel and sizes_to_plot:
-                    success = plot_virtual_gel(
-                        sizes_to_plot, 
-                        ladder_name=args.ladder, 
-                        output_path=args.plot_gel,
-                        agarose_pct=args.agarose,
-                        voltage=args.voltage,
-                        time_min=args.time,
-                        gel_length_cm=args.gel_length,
-                        amplicon_topologies=tops_to_plot
-                    )
-                    if success:
+                    try:
+                        plot_virtual_gel(
+                            sizes_to_plot, 
+                            ladder_name=args.ladder, 
+                            output_path=args.plot_gel,
+                            agarose_pct=args.agarose,
+                            voltage=args.voltage,
+                            time_min=args.time,
+                            gel_length_cm=args.gel_length,
+                            amplicon_topologies=tops_to_plot
+                        )
                         print(f"  [GEL] Saved virtual gel to: {args.plot_gel} (Ladder: {args.ladder})\n")
-                    else:
-                        print(f"  [GEL] WARNING: Could not plot gel. Ensure seaborn and matplotlib are installed.\n")
+                    except ImportError as e:
+                        print(f"  [GEL] {e}\n")
                 
             except ImportError:
-                print("  [WARNING] Biopython is required to read template files. Install with: pip install biopython")
+                print("  [WARNING] Biopython is required to read template files. Install with: pip install polymerase-tm[bio]")
             except Exception as e:
                 print(f"  [WARNING] Could not read template file: {e}")
 

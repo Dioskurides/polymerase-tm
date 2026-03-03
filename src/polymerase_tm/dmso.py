@@ -252,7 +252,7 @@ def dmso_recommendation(
         if not _HAS_BIO:
             raise ImportError(
                 "Biopython is required for GenBank file reading. "
-                "Install with: pip install biopython"
+                "Install with: pip install polymerase-tm[bio]"
             )
         record = SeqIO.read(template_file, "genbank")
         template_seq = str(record.seq)

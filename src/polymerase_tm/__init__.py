@@ -57,7 +57,7 @@ from .batch import (
     pcr_protocol,
     from_csv,
     to_csv,
-    _additive_recommendation,
+    additive_recommendation,
 )
 
 # --- Primer Analysis ---
@@ -72,7 +72,7 @@ from .analysis import (
 # --- Visualization ---
 from .gel import plot_virtual_gel
 
-__version__ = "0.9.1"
+__version__ = "1.0.0"
 
 __all__ = [
     # Core
@@ -90,6 +90,7 @@ __all__ = [
     "pcr_protocol",
     "from_csv",
     "to_csv",
+    "additive_recommendation",
     # Analysis
     "primer_dimer",
     "gibson_overlaps",

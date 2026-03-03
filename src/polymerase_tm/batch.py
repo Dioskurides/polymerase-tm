@@ -141,7 +141,7 @@ def optimal_binding_length(
     }
 
 
-def _additive_recommendation(
+def additive_recommendation(
     fwd: str,
     rev: str,
     polymerase: str = "q5",
@@ -160,6 +160,21 @@ def _additive_recommendation(
     - Average primer GC > 65 %
     - Strong self-hairpin in primer (stem >= 5 bp, Tm >= 40 degC)
     - Amplicon GC > 65 % (if provided)
+
+    Parameters
+    ----------
+    fwd, rev : str
+        Primer binding sequences.
+    polymerase : str
+        Polymerase key (default ``"q5"``).
+    amplicon_gc : float, optional
+        Amplicon GC content as percentage (0-100).
+
+    Returns
+    -------
+    dict
+        Keys: ``recommended`` (bool), ``additive`` (str or None),
+        ``concentration`` (str or None), ``reasons`` (list[str]).
     """
     fwd = fwd.strip().upper()
     rev = rev.strip().upper()
@@ -217,6 +232,10 @@ def _additive_recommendation(
             "concentration": f"{pct}%",
             "reasons": reasons,
         }
+
+
+# Backward-compatible alias (was private in v0.9.x)
+_additive_recommendation = additive_recommendation
 
 
 def check_pair(
@@ -279,7 +298,7 @@ def check_pair(
     if gc_r < 30 or gc_r > 70:
         warnings.append(f"Reverse primer GC content ({gc_r:.0f}%) is outside ideal range (30-70%).")
 
-    additive = _additive_recommendation(fwd, rev, polymerase=polymerase)
+    additive = additive_recommendation(fwd, rev, polymerase=polymerase)
 
     return {
         "fwd_seq": fwd,
@@ -453,7 +472,7 @@ def pcr_protocol(
         + params["final_ext"]
     )
 
-    additive = _additive_recommendation(fwd, rev, polymerase=polymerase)
+    additive = additive_recommendation(fwd, rev, polymerase=polymerase)
 
     return {
         "polymerase": polymerase,

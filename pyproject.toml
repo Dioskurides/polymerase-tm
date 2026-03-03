@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "polymerase-tm"
-version = "0.9.1"
+version = "1.0.0"
 description = "Exact reproduction of the NEB Tm Calculator for PCR primer analysis with all NEB polymerases"
 readme = "README.md"
 license = "MIT"
@@ -18,7 +18,7 @@ keywords = [
     "gibson-assembly", "dmso",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -30,11 +30,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-dependencies = [
-    "biopython>=1.80",
-    "matplotlib>=3.5",
-    "seaborn>=0.12",
-]
+dependencies = []
+
+[project.optional-dependencies]
+bio = ["biopython>=1.80"]
+viz = ["matplotlib>=3.5", "seaborn>=0.12"]
+all = ["polymerase-tm[bio,viz]"]
 
 [project.urls]
 Homepage = "https://github.com/Dioskurides/polymerase-tm"
