@@ -304,6 +304,13 @@ def main(argv: list[str] | None = None) -> None:
         default="check_pair",
         help="Batch action to execute on the CSV file. Default: check_pair.",
     )
+    csv_group.add_argument("--csv-name-col", default="name", metavar="COL", help="Column name for row IDs (default: name).")
+    csv_group.add_argument("--csv-fwd-col", default="fwd", metavar="COL", help="Column name for forward primers (default: fwd).")
+    csv_group.add_argument("--csv-rev-col", default="rev", metavar="COL", help="Column name for reverse primers (default: rev).")
+    csv_group.add_argument("--csv-seq-col", default="seq", metavar="COL", help="Column name for single sequences (default: seq).")
+    csv_group.add_argument("--csv-template-col", default="template", metavar="COL", help="Column name for templates (default: template).")
+    csv_group.add_argument("--csv-mutation-col", default="mutation", metavar="COL", help="Column name for SDM mutations (default: mutation).")
+    csv_group.add_argument("--csv-mode-col", default="mode", metavar="COL", help="Column name for SDM mutation modes (default: mode).")
 
     from polymerase_tm import __version__  # type: ignore
     parser.add_argument(
@@ -334,6 +341,13 @@ def main(argv: list[str] | None = None) -> None:
                 codon_mode=args.codon_mode,
                 confine_to_tails=args.confine_to_tails,
                 circular=not args.linear,
+                name_col=args.csv_name_col,
+                fwd_col=args.csv_fwd_col,
+                rev_col=args.csv_rev_col,
+                seq_col=args.csv_seq_col,
+                template_col=args.csv_template_col,
+                mutation_col=args.csv_mutation_col,
+                mode_col=args.csv_mode_col,
             )
             to_csv(results, args.csv_out)
             print(f"  [CSV Batch] Success! {len(results)} rows written to {args.csv_out}\n")

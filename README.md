@@ -234,6 +234,31 @@ polymerase-tm --csv mutations.csv --csv-action sdm
 polymerase-tm --csv protocols.csv --csv-action protocol
 ```
 
+## CSV Batch Automation (Structures)
+
+Depending on the `action` used, the CSV file requires specific column names. You can override these defaults in the CLI using `--csv-<type>-col` (e.g., `--csv-template-col DNA_Sequence`).
+
+| Action | Required Columns | Optional Columns |
+| :--- | :--- | :--- |
+| `check_pair` | `fwd`, `rev` | `name` |
+| `tm` | `seq` | `name` |
+| `protocol` | `fwd`, `rev` | `template`, `name` |
+| `sdm` | `template`, `mutation` | `mode` (default: point), `name` |
+
+### SDM Mutation Formatting
+
+For `action="sdm"`, the `mutation` column dictates what is changed in the `template`. The precise formatting depends on the `mode`:
+
+| Mode | Format | Example | Description |
+| :--- | :--- | :--- | :--- |
+| **`point`** | `<OldAA><Pos><NewAA>` | `M1A` | Mutates Methionine at Amino Acid position 1 to Alanine. Chain commands with spaces: `T2A K5R`. |
+| **`sub`** | `<Pos>:<Nucleotides>` | `10:GGG` | Replaces nucleotides starting at base pair 10 with `GGG`. |
+| **`del`** | `<Pos>:<Length>` | `15:3` | Deletes exactly 3 nucleotides starting at base pair 15. |
+| **`ins`** | `<Pos>:<Nucleotides>` | `20:AAAA` | Inserts four Adenines (`AAAA`) at base pair 20. |
+
+> [!NOTE] 
+> If `mode` is omitted from the CSV, it defaults to **`point`**. In this mode, mutations happen on the translated **Amino Acid sequence**, not the naked DNA.
+
 ## API Reference
 
 | Function | Description |
