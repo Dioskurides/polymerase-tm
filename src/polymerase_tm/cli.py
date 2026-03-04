@@ -505,8 +505,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  [PCR CYCLING PROTOCOL]")
         if amp_len:
             print(f"  Expected Amplicon: {amp_len} bp (linear)")
-        elif template_seq:
-            template_len = len(template_seq) if template_seq else 0
+        elif isinstance(template_seq, str):
+            template_len = len(template_seq)
             print(f"  Expected Amplicon: Not found (check primer orientation/binding)")
             print(f"  Template Size: {template_len} bp ({template_topology})")
         
@@ -523,7 +523,7 @@ def main(argv: list[str] | None = None) -> None:
         if amp_len:
             sizes_to_plot.append(amp_len)
             tops_to_plot.append("linear")  # PCR products are always linear
-        elif template_seq:
+        elif isinstance(template_seq, str):
             sizes_to_plot.append(len(template_seq))
             # Biopython uses "circular", map to our "coiled" for plasmids
             tops_to_plot.append("coiled" if template_topology == "circular" else template_topology)
@@ -532,12 +532,9 @@ def main(argv: list[str] | None = None) -> None:
             sizes_to_plot.extend(args.plot_gel_sizes)
             
             # Extend topologies from args, pad with linear if needed
-            custom_tops = args.topology if hasattr(args, "topology") else []
-            for i in range(len(args.plot_gel_sizes)):
-                if i < len(custom_tops):
-                    tops_to_plot.append(custom_tops[i])
-                else:
-                    tops_to_plot.append("linear")
+            top_iter = iter(getattr(args, "topology", []))
+            for _ in args.plot_gel_sizes:
+                tops_to_plot.append(next(top_iter, "linear"))
             
         if args.plot_gel and sizes_to_plot:
             try:
