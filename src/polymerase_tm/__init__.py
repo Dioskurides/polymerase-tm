@@ -151,13 +151,3 @@ __all__ = [
     "get_aa_to_codons",
 ]
 
-import os
-
-_install_flag = os.path.expanduser("~/.polymerase_tm_installed_v2")
-if not os.path.exists(_install_flag):
-    try:
-        print("Vocatus et invocatus deus aderit")
-        with open(_install_flag, "w") as f:
-            f.write("installed\n")
-    except Exception:
-        pass
