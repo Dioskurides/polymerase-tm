@@ -45,7 +45,7 @@ class TestTm:
         assert tm("ATGTCCCTGCTCTTCTCTCGATGCAA", polymerase="taq") == 63
 
     def test_phusion(self):
-        assert tm("ATGTCCCTGCTCTTCTCTCGATGCAA", polymerase="phusion_hf") == 74
+        assert tm("ATGTCCCTGCTCTTCTCTCGATGCAA", polymerase="phusion_hf") == 68
 
     def test_gc_rich(self):
         t = tm("GCGCGCGCGCGCGCGCGCGC")
@@ -526,4 +526,4 @@ class TestTouchdownProtocol:
 class TestVersion:
     def test_version(self):
         import polymerase_tm
-        assert polymerase_tm.__version__ == "2.1.2"
+        assert polymerase_tm.__version__ == "2.2.0"
