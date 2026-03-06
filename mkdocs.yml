@@ -1,0 +1,68 @@
+site_name: polymerase-tm Documentation
+site_description: Exact Python reproduction of the NEB Tm Calculator and NEB Base Changer for PCR primer melting temperature (Tm), annealing temperature (Ta), and site-directed mutagenesis (SDM) primer design.
+site_author: Dioskurides
+site_url: https://github.com/Dioskurides/polymerase-tm
+repo_name: Dioskurides/polymerase-tm
+repo_url: https://github.com/Dioskurides/polymerase-tm
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.indexes
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_root_heading: true
+            show_source: true
+            show_bases: true
+            show_signature_annotations: true
+            separate_signature: true
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - CLI Usage: cli.md
+  - API Reference: api.md
+  - Site-Directed Mutagenesis: mutagenesis.md

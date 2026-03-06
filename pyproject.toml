@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "polymerase-tm"
-version = "2.1.5"
+version = "2.2.0"
 description = "NEB Tm Calculator + Base Changer: PCR primer Tm/Ta and site-directed mutagenesis primer design for all NEB polymerases"
 readme = "README.md"
 license = "MIT"
@@ -40,6 +40,12 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/Dioskurides/polymerase-tm"
 Issues = "https://github.com/Dioskurides/polymerase-tm/issues"
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
 
 [project.scripts]
 polymerase-tm = "polymerase_tm.cli:main"
