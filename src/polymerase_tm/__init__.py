@@ -93,7 +93,7 @@ from .mutagenesis import (
     parse_aa_mutation,
 )
 
-__version__ = "2.3.1"
+__version__ = "2.3.2"
 
 __all__ = [
     # Core

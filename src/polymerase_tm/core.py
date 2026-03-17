@@ -10,6 +10,8 @@ from __future__ import annotations
 import math
 from typing import Optional
 
+import primer3
+
 from .constants import (
     NN_PARAMS, TERMINAL, R, BUFFERS, POLYMERASES,
     Q5_SDM_MONO_MM, Q5_SDM_DIVALENT_MM, Q5_SDM_PRIMER_NM,
@@ -87,6 +89,28 @@ def owczarzy_correction(tm_raw: float, seq: str, salt_mM: float) -> float:
     return 1.0 / (1.0 / (tm_raw + 273.15) + corr) - 273.15
 
 
+def schildkraut_correction(tm_raw: float, salt_mM: float) -> float:
+    """Schildkraut & Lifson (1965) Tm salt correction.
+
+    Used by NEB for Phusion polymerases.
+
+    Parameters
+    ----------
+    tm_raw : float
+        Raw Tm from ``calc_nn_raw`` (1 M reference).
+    salt_mM : float
+        Effective monovalent salt concentration in mM.
+
+    Returns
+    -------
+    float
+        Salt-corrected Tm in degrees Celsius.
+    """
+    if salt_mM <= 0:
+        raise ValueError(f"Salt concentration must be positive, got {salt_mM} mM.")
+    return tm_raw + 16.6 * math.log10(salt_mM / 1000.0)
+
+
 def _resolve_salt(
     polymerase: str,
     buffer: Optional[str] = None,
@@ -129,6 +153,7 @@ def tm(
     polymerase: str = "q5",
     buffer: Optional[str] = None,
     salt_mM: Optional[int] = None,
+    method: Optional[str] = None,
 ) -> int:
     """Calculate Tm for a primer sequence.
 
@@ -144,6 +169,11 @@ def tm(
     salt_mM : int, optional
         Direct salt concentration (mM) override. Takes priority
         over both ``polymerase`` and ``buffer``.
+    method : str, optional
+        Force a specific Tm calculation method:
+        - "owczarzy" (default for most)
+        - "schildkraut" (default for Phusion)
+        - "primer3" (uses primer3-py)
 
     Returns
     -------
@@ -153,8 +183,7 @@ def tm(
     Examples
     --------
     >>> tm("ATCGATCGATCG")                    # Q5 default
-    >>> tm("ATCGATCGATCG", buffer="thermopol") # Thermopol buffer
-    >>> tm("ATCGATCGATCG", salt_mM=50)         # custom 50 mM
+    >>> tm("ATCGATCGATCG", method="primer3")   # use primer3
     """
     polymerase = polymerase.lower().replace(" ", "_").replace("-", "_")
     if polymerase not in POLYMERASES:
@@ -165,6 +194,19 @@ def tm(
     poly = POLYMERASES[polymerase]
     salt = _resolve_salt(polymerase, buffer, salt_mM)
     conc = poly["conc"]
+
+    if method == "primer3" or (not method and poly.get("tm_method") == "primer3"):
+        # primer3 expects salt in mM, conc in nM
+        # mv_conc=monovalent, dv_conc=divalent, dna_conc=primer
+        t = primer3.calc_tm(seq, mv_conc=salt, dv_conc=0, dntp_conc=0, dna_conc=conc)
+        return round(t)
+
+    # Fallback to internal logic
+    calc_method = method if method else poly.get("tm_method", "owczarzy")
+    if calc_method == "schildkraut":
+        # NEB divides primer concentration by 4 for Phusion
+        raw = calc_nn_raw(seq, conc / 4)
+        return round(schildkraut_correction(raw, salt))
     raw = calc_nn_raw(seq, conc)
     return round(owczarzy_correction(raw, seq, salt))
 
@@ -176,6 +218,7 @@ def ta(
     dmso_pct: float = 0,
     buffer: Optional[str] = None,
     salt_mM: Optional[int] = None,
+    method: Optional[str] = None,
 ) -> tuple[int, int, int]:
     """Calculate the recommended annealing temperature for a primer pair.
 
@@ -191,14 +234,16 @@ def ta(
         NEB buffer name to override the polymerase default.
     salt_mM : int, optional
         Direct salt concentration (mM) override.
+    method : str, optional
+        Force a specific Tm calculation method (e.g. "primer3").
 
     Returns
     -------
     (Ta, Tm1, Tm2) : tuple[int, int, int]
         Recommended annealing temperature, Tm of seq1, Tm of seq2.
     """
-    t1 = tm(seq1, polymerase, buffer=buffer, salt_mM=salt_mM)
-    t2 = tm(seq2, polymerase, buffer=buffer, salt_mM=salt_mM)
+    t1 = tm(seq1, polymerase, buffer=buffer, salt_mM=salt_mM, method=method)
+    t2 = tm(seq2, polymerase, buffer=buffer, salt_mM=salt_mM, method=method)
     poly = POLYMERASES[polymerase]
     min_tm = min(t1, t2)
     min_len = min(len(seq1.strip()), len(seq2.strip()))
