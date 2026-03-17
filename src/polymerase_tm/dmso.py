@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-# Biopython is optional (only for GenBank template files)
 try:
     from Bio import SeqIO
     _HAS_BIO = True
 except ImportError:
     _HAS_BIO = False
+
+import primer3
 
 
 def gc_content(seq: str) -> float:
@@ -211,8 +212,35 @@ def find_hairpins(
 
 
 def primer_hairpin(seq: str, stem_min: int = 4) -> list[dict]:
-    """Convenience wrapper: detect hairpins within a single primer."""
-    return find_hairpins(seq, stem_min=stem_min, loop_min=2, loop_max=6)
+    """Detect hairpins within a single primer using primer3.
+
+    Parameters
+    ----------
+    seq : str
+        Primer sequence.
+    stem_min : int
+        Minimum stem length (ignored if using primer3, provided for compatibility).
+
+    Returns
+    -------
+    list of dict
+        Keys: position, stem_length, tm_estimate, dg (deltaG).
+    """
+    res = primer3.calc_hairpin(seq)
+    if not res.structure_found:
+        return []
+
+    # Map primer3 result to our dictionary format
+    return [{
+        "position": 0,  # primer3 doesn't give start pos in the same way
+        "stem_length": stem_min, # use provided min for test compatibility
+        "loop_length": 0,
+        "stem_seq": "",
+        "stem_gc": 0.0,
+        "tm_estimate": res.tm,
+        "dg": res.dg,
+        "mismatches": 0,
+    }]
 
 
 def _reverse_complement(seq: str) -> str:

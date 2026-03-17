@@ -9,8 +9,11 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+import primer3
+
 from .core import tm
 from .dmso import gc_content, primer_hairpin, _reverse_complement
+from .constants import RESTRICTION_ENZYMES
 
 
 # IUPAC ambiguity code to regex character class mapping
@@ -32,129 +35,7 @@ def _has_degenerate(site: str) -> bool:
     return bool(set(site.upper()) - set("ATGC"))
 
 
-# Comprehensive restriction enzyme recognition sites (5'->3')
-# All common NEB enzymes, including those with degenerate IUPAC bases
-# (N, R, Y, S, W, M, K, etc.).  Degenerate sites are matched via
-# regex expansion at scan time.
-RESTRICTION_ENZYMES: dict[str, str] = {
-    # --- 4-cutters ---
-    "AluI": "AGCT",
-    "CviAII": "CATG",
-    "DpnI": "GATC",
-    "DpnII": "GATC",
-    "FatI": "CATG",
-    "HaeIII": "GGCC",
-    "HhaI": "GCGC",
-    "HpyCH4V": "TGCA",
-    "MboI": "GATC",
-    "MluCI": "AATT",
-    "MseI": "TTAA",
-    "MspI": "CCGG",
-    "NlaIII": "CATG",
-    "RsaI": "GTAC",
-    "Sau3AI": "GATC",
-    "TaqI": "TCGA",
-    # --- 5-cutters ---
-    "AvaII": "GGACC",
-    "EcoRII": "CCAGG",
-    # --- 6-cutters (most common) ---
-    "AatII": "GACGTC",
-    "AccI": "GTCGAC",
-    "AclI": "AACGTT",
-    "AfeI": "AGCGCT",
-    "AflII": "CTTAAG",
-    "AgeI": "ACCGGT",
-    "ApaI": "GGGCCC",
-    "ApaLI": "GTGCAC",
-    "AscI": "GGCGCGCC",
-    "AseI": "ATTAAT",
-    "AvaI": "CTCGAG",
-    "AvrII": "CCTAGG",
-    "BamHI": "GGATCC",
-    "BclI": "TGATCA",
-    "BglI": "GCCGC",
-    "BglII": "AGATCT",
-    "BlpI": "GCTNAGC",
-    "BmtI": "GCTAGC",
-    "BsaBI": "GATC",
-    "BsiWI": "CGTACG",
-    "BspEI": "TCCGGA",
-    "BspHI": "TCATGA",
-    "BsrGI": "TGTACA",
-    "BssHII": "GCGCGC",
-    "BstBI": "TTCGAA",
-    "BstEII": "GGTNACC",
-    "BstXI": "CCANNNNTGG",
-    "BstZ17I": "GTATAC",
-    "ClaI": "ATCGAT",
-    "DraI": "TTTAAA",
-    "EagI": "CGGCCG",
-    "EcoNI": "CCTNNNNNAGG",
-    "EcoRI": "GAATTC",
-    "EcoRV": "GATATC",
-    "FseI": "GGCCGGCC",
-    "FspI": "TGCGCA",
-    "HincII": "GTYRAC",
-    "HindIII": "AAGCTT",
-    "HpaI": "GTTAAC",
-    "KasI": "GGCGCC",
-    "KpnI": "GGTACC",
-    "MfeI": "CAATTG",
-    "MluI": "ACGCGT",
-    "MscI": "TGGCCA",
-    "NaeI": "GCCGGC",
-    "NarI": "GGCGCC",
-    "NciI": "CCSGG",
-    "NcoI": "CCATGG",
-    "NdeI": "CATATG",
-    "NgoMIV": "GCCGGC",
-    "NheI": "GCTAGC",
-    "NotI": "GCGGCCGC",
-    "NruI": "TCGCGA",
-    "NsiI": "ATGCAT",
-    "NspI": "CATG",
-    "PacI": "TTAATTAA",
-    "PciI": "ACATGT",
-    "PmeI": "GTTTAAAC",
-    "PmlI": "CACGTG",
-    "PpuMI": "AGGCCT",
-    "PsiI": "TTATAA",
-    "PspOMI": "GGGCCC",
-    "PstI": "CTGCAG",
-    "PvuI": "CGATCG",
-    "PvuII": "CAGCTG",
-    "SacI": "GAGCTC",
-    "SacII": "CCGCGG",
-    "SalI": "GTCGAC",
-    "SbfI": "CCTGCAGG",
-    "ScaI": "AGTACT",
-    "SfoI": "GGCGCC",
-    "SgrAI": "CRCCGGYG",
-    "SmaI": "CCCGGG",
-    "SmlI": "CTYRAG",
-    "SnaBI": "TACGTA",
-    "SpeI": "ACTAGT",
-    "SphI": "GCATGC",
-    "SspI": "AATATT",
-    "StuI": "AGGCCT",
-    "SwaI": "ATTTAAAT",
-    "TliI": "CTCGAG",
-    "XbaI": "TCTAGA",
-    "XhoI": "CTCGAG",
-    "XmaI": "CCCGGG",
-    # --- 8-cutters (rare cutters) ---
-    "AsiSI": "GCGATCGC",
-    # --- Common cloning enzymes ---
-    "SfiI": "GGCCNNNNNGGCC",
-    "BsaI": "GGTCTC",
-    "BbsI": "GAAGAC",
-    "BsmBI": "CGTCTC",
-    "SapI": "GAAGAGC",
-    "BtgZI": "GCGATG",
-    "EarI": "CTCTTC",
-    "BspMI": "ACCTGC",
-    "PaqCI": "CACCTGC",
-}
+# RESTRICTION_ENZYMES moved to constants.py
 
 
 def primer_dimer(
@@ -162,98 +43,57 @@ def primer_dimer(
     rev: str,
     min_complementarity: int = 4,
 ) -> dict:
-    """Check 3'-end complementarity between two primers (primer dimer risk).
+    """Check dimer risk between two primers using primer3.
 
-    Slides the reverse complement of each primer along the other and
-    scores consecutive base-pair matches at the 3' ends.
+    Evaluates homodimers and heterodimers using thermodynamic parameters.
 
     Parameters
     ----------
     fwd, rev : str
         Primer sequences.
     min_complementarity : int
-        Minimum consecutive 3'-end matches to report (default 4).
+        Provided for compatibility (not directly used by primer3).
 
     Returns
     -------
     dict
-        Keys: ``max_score`` (int), ``risk_level`` (str),
-        ``fwd_3prime_matches`` (int), ``rev_3prime_matches`` (int),
-        ``details`` (list of dicts with match info).
-
-    Examples
-    --------
-    >>> result = primer_dimer("ATCGATCGATCG", "CGATCGATCGAT")
-    >>> print(result["risk_level"])
+        Keys: max_score, risk_level, fwd_self_dimer_dg, rev_self_dimer_dg, hetero_dimer_dg.
     """
     fwd = fwd.strip().upper()
     rev = rev.strip().upper()
-    rev_rc = _reverse_complement(rev)
-    fwd_rc = _reverse_complement(fwd)
 
-    def _count_3prime_matches(a: str, b_rc: str) -> list[dict]:
-        """Find consecutive matches at 3' end of `a` with `b_rc`."""
-        matches = []
-        len_a, len_b = len(a), len(b_rc)
-        # Slide b_rc along a: offset = position where b_rc[0] aligns with a[offset]
-        for offset in range(-(len_b - 1), len_a):
-            consec = 0
-            best_consec = 0
-            last_match_pos = -1
-            for i in range(max(0, offset), min(len_a, offset + len_b)):
-                j = i - offset
-                if a[i] == b_rc[j]:
-                    consec += 1
-                    if consec > best_consec:
-                        best_consec = consec
-                        last_match_pos = i
-                else:
-                    consec = 0
-            # Check if 3' end of a is involved
-            if best_consec >= min_complementarity and last_match_pos >= len_a - 3:
-                matches.append({
-                    "complementary_bases": best_consec,
-                    "position_in_primer": last_match_pos - best_consec + 1,
-                    "at_3prime": last_match_pos >= len_a - best_consec,
-                })
-        return matches
+    homo_fwd = primer3.calc_homodimer(fwd)
+    homo_rev = primer3.calc_homodimer(rev)
+    hetero = primer3.calc_heterodimer(fwd, rev)
 
-    fwd_matches = _count_3prime_matches(fwd, rev_rc)
-    rev_matches = _count_3prime_matches(rev, fwd_rc)
+    # Convert deltaG to a "score" for compatibility (or just use dg)
+    # Lower dg (more negative) means stronger dimer.
+    # Risk assessment based on deltaG (kcal/mol)
+    def determine_risk(dg: float) -> str:
+        if dg <= -9.0:
+            return "high"
+        if dg <= -6.0:
+            return "moderate"
+        if dg <= -3.0:
+            return "low"
+        return "none"
 
-    # Also check self-dimers (3' of fwd with itself, 3' of rev with itself)
-    fwd_self = _count_3prime_matches(fwd, fwd_rc)
-    rev_self = _count_3prime_matches(rev, rev_rc)
-
-    all_matches = fwd_matches + rev_matches
-    max_score = max((m["complementary_bases"] for m in all_matches), default=0)
-
-    # Determine risk level
-    if max_score >= 8:
-        risk = "high"
-    elif max_score >= 6:
-        risk = "moderate"
-    elif max_score >= min_complementarity:
-        risk = "low"
-    else:
-        risk = "none"
+    max_dg = min(homo_fwd.dg, homo_rev.dg, hetero.dg)
+    risk = determine_risk(max_dg)
 
     return {
-        "max_score": max_score,
+        "max_score": round(abs(max_dg)), # using abs(dg) as a proxy score
         "risk_level": risk,
-        "fwd_3prime_matches": max(
-            (m["complementary_bases"] for m in fwd_matches), default=0
-        ),
-        "rev_3prime_matches": max(
-            (m["complementary_bases"] for m in rev_matches), default=0
-        ),
-        "fwd_self_dimer": max(
-            (m["complementary_bases"] for m in fwd_self), default=0
-        ),
-        "rev_self_dimer": max(
-            (m["complementary_bases"] for m in rev_self), default=0
-        ),
-        "details": all_matches,
+        "fwd_self_dimer": homo_fwd.dg,  # for compatibility
+        "rev_self_dimer": homo_rev.dg,  # for compatibility
+        "fwd_self_dimer_dg": homo_fwd.dg,
+        "rev_self_dimer_dg": homo_rev.dg,
+        "hetero_dimer_dg": hetero.dg,
+        "details": [
+            {"type": "homo_fwd", "dg": homo_fwd.dg, "tm": homo_fwd.tm},
+            {"type": "homo_rev", "dg": homo_rev.dg, "tm": homo_rev.tm},
+            {"type": "hetero", "dg": hetero.dg, "tm": hetero.tm},
+        ],
     }
 
 
@@ -561,16 +401,17 @@ def primer_quality(seq: str) -> dict:
         score -= 5
         issues.append(f"Dinucleotide repeat ({max_repeat}x)")
 
-    # --- Hairpins ---
+    # --- Hairpins (using primer3 dg) ---
     hairpins = primer_hairpin(seq)
-    strong_hairpins = [h for h in hairpins if h["stem_length"] >= 4]
-    hairpin_count = len(strong_hairpins)
-    if hairpin_count >= 2:
-        score -= 15
-        issues.append(f"{hairpin_count} strong hairpins detected")
-    elif hairpin_count == 1:
+    dg = hairpins[0]["dg"] if hairpins else 0.0
+    hairpin_count = len(hairpins)
+
+    if dg <= -3.0:
+        score -= 20
+        issues.append(f"Strong hairpin detected (dg={dg:.1f} kcal/mol)")
+    elif dg <= -1.0:
         score -= 5
-        issues.append("1 hairpin detected")
+        issues.append(f"Weak hairpin detected (dg={dg:.1f} kcal/mol)")
 
     # --- Restriction sites ---
     re_sites = restriction_scan(seq)
