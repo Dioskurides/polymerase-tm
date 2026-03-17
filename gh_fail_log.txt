@@ -1,0 +1,147 @@
+test (3.12)	Run tests	﻿2026-03-06T21:53:05.9157798Z ##[group]Run pytest tests/ -v
+test (3.12)	Run tests	2026-03-06T21:53:05.9220182Z [36;1mpytest tests/ -v[0m
+test (3.12)	Run tests	2026-03-06T21:53:05.9272386Z shell: /usr/bin/bash -e {0}
+test (3.12)	Run tests	2026-03-06T21:53:05.9272637Z env:
+test (3.12)	Run tests	2026-03-06T21:53:05.9272876Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+test (3.12)	Run tests	2026-03-06T21:53:05.9273484Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+test (3.12)	Run tests	2026-03-06T21:53:05.9273910Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+test (3.12)	Run tests	2026-03-06T21:53:05.9274299Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+test (3.12)	Run tests	2026-03-06T21:53:05.9274668Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+test (3.12)	Run tests	2026-03-06T21:53:05.9275052Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+test (3.12)	Run tests	2026-03-06T21:53:05.9275361Z ##[endgroup]
+test (3.12)	Run tests	2026-03-06T21:53:06.2528136Z ============================= test session starts ==============================
+test (3.12)	Run tests	2026-03-06T21:53:06.2529299Z platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0 -- /opt/hostedtoolcache/Python/3.12.12/x64/bin/python
+test (3.12)	Run tests	2026-03-06T21:53:06.2530065Z cachedir: .pytest_cache
+test (3.12)	Run tests	2026-03-06T21:53:06.2530418Z rootdir: /home/runner/work/polymerase-tm/polymerase-tm
+test (3.12)	Run tests	2026-03-06T21:53:06.2530822Z configfile: pyproject.toml
+test (3.12)	Run tests	2026-03-06T21:53:07.8047435Z collecting ... collected 111 items
+test (3.12)	Run tests	2026-03-06T21:53:07.8047873Z 
+test (3.12)	Run tests	2026-03-06T21:53:07.8080415Z tests/test_batch_csv.py::test_from_csv_check_pair PASSED                 [  0%]
+test (3.12)	Run tests	2026-03-06T21:53:07.8094871Z tests/test_batch_csv.py::test_from_csv_tm PASSED                         [  1%]
+test (3.12)	Run tests	2026-03-06T21:53:07.8110526Z tests/test_batch_csv.py::test_from_csv_protocol PASSED                   [  2%]
+test (3.12)	Run tests	2026-03-06T21:53:07.8126993Z tests/test_batch_csv.py::test_from_csv_sdm PASSED                        [  3%]
+test (3.12)	Run tests	2026-03-06T21:53:07.8141772Z tests/test_batch_csv.py::test_to_csv_flatten PASSED                      [  4%]
+test (3.12)	Run tests	2026-03-06T21:53:08.0775614Z tests/test_gel.py::test_plot_virtual_gel_1kb_plus PASSED                 [  5%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2827137Z tests/test_gel.py::test_plot_virtual_gel_100bp PASSED                    [  6%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2847899Z tests/test_migration_math.py::test_migration PASSED                      [  7%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2855855Z tests/test_mutagenesis.py::TestCodonSelection::test_usage_mode_ecoli PASSED [  8%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2864144Z tests/test_mutagenesis.py::TestCodonSelection::test_parsimony_mode PASSED [  9%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2872023Z tests/test_mutagenesis.py::TestCodonSelection::test_usage_mode_alanine PASSED [  9%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2880919Z tests/test_mutagenesis.py::TestCodonSelection::test_unknown_aa_raises PASSED [ 10%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2888558Z tests/test_mutagenesis.py::TestCodonSelection::test_stop_codon PASSED    [ 11%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2896460Z tests/test_mutagenesis.py::TestMutationParsing::test_single_mutation PASSED [ 12%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2904188Z tests/test_mutagenesis.py::TestMutationParsing::test_multiple_mutations PASSED [ 13%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2911597Z tests/test_mutagenesis.py::TestMutationParsing::test_comma_separated PASSED [ 14%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2919257Z tests/test_mutagenesis.py::TestMutationParsing::test_explicit_codon PASSED [ 15%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2927994Z tests/test_mutagenesis.py::TestMutationParsing::test_invalid_format_raises PASSED [ 16%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2935748Z tests/test_mutagenesis.py::TestMutationParsing::test_stop_codon_mutation PASSED [ 17%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2942991Z tests/test_mutagenesis.py::TestGeneticCodes::test_standard_code_is_default PASSED [ 18%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2950672Z tests/test_mutagenesis.py::TestGeneticCodes::test_vertebrate_mitochondrial PASSED [ 18%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2981607Z tests/test_mutagenesis.py::TestGeneticCodes::test_yeast_mitochondrial PASSED [ 19%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2989456Z tests/test_mutagenesis.py::TestGeneticCodes::test_all_12_codes_exist PASSED [ 20%]
+test (3.12)	Run tests	2026-03-06T21:53:08.2998308Z tests/test_mutagenesis.py::TestGeneticCodes::test_invalid_code_raises PASSED [ 21%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3006310Z tests/test_mutagenesis.py::TestGeneticCodes::test_aa_to_codons_reverse PASSED [ 22%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3013725Z tests/test_mutagenesis.py::TestCalcSdmTm::test_basic_20mer PASSED        [ 23%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3021478Z tests/test_mutagenesis.py::TestCalcSdmTm::test_gc_rich_primer PASSED     [ 24%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3029308Z tests/test_mutagenesis.py::TestCalcSdmTm::test_bivariate_vs_mono PASSED  [ 25%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3037157Z tests/test_mutagenesis.py::TestCalcSdmTm::test_dmso_correction PASSED    [ 26%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3044936Z tests/test_mutagenesis.py::TestBaseChanger::test_init PASSED             [ 27%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3052956Z tests/test_mutagenesis.py::TestBaseChanger::test_empty_template_raises PASSED [ 27%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3061223Z tests/test_mutagenesis.py::TestBaseChanger::test_invalid_bases_raises PASSED [ 28%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3070468Z tests/test_mutagenesis.py::TestBaseChanger::test_point_mutation_basic PASSED [ 29%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3079784Z tests/test_mutagenesis.py::TestBaseChanger::test_point_mutation_preserves_template PASSED [ 30%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3088615Z tests/test_mutagenesis.py::TestBaseChanger::test_point_mutation_codon_change PASSED [ 31%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3097513Z tests/test_mutagenesis.py::TestBaseChanger::test_explicit_codon PASSED   [ 32%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3106994Z tests/test_mutagenesis.py::TestBaseChanger::test_ta_calculation PASSED   [ 33%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3115366Z tests/test_mutagenesis.py::TestBaseChanger::test_deletion PASSED         [ 34%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3123622Z tests/test_mutagenesis.py::TestBaseChanger::test_insertion PASSED        [ 35%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3132045Z tests/test_mutagenesis.py::TestBaseChanger::test_substitution PASSED     [ 36%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3141816Z tests/test_mutagenesis.py::TestBaseChanger::test_batch PASSED            [ 36%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3150457Z tests/test_mutagenesis.py::TestBaseChanger::test_confine_to_tails PASSED [ 37%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3159613Z tests/test_mutagenesis.py::TestBaseChanger::test_codon_mode_parsimony PASSED [ 38%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3168509Z tests/test_mutagenesis.py::TestBaseChanger::test_genetic_code_2 PASSED   [ 39%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3177809Z tests/test_mutagenesis.py::TestBaseChanger::test_min_length_parameter PASSED [ 40%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3186699Z tests/test_mutagenesis.py::TestBaseChanger::test_sdm_primer_dataclass PASSED [ 41%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3196837Z tests/test_mutagenesis.py::TestBaseChanger::test_summary_table PASSED    [ 42%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3204524Z tests/test_polymerase_tm.py::TestTm::test_q5_basic PASSED                [ 43%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3211770Z tests/test_polymerase_tm.py::TestTm::test_q5_short PASSED                [ 44%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3219314Z tests/test_polymerase_tm.py::TestTm::test_taq_basic PASSED               [ 45%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3846479Z tests/test_polymerase_tm.py::TestTm::test_phusion FAILED                 [ 45%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3854297Z tests/test_polymerase_tm.py::TestTm::test_gc_rich PASSED                 [ 46%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3861859Z tests/test_polymerase_tm.py::TestTm::test_at_rich PASSED                 [ 47%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3869769Z tests/test_polymerase_tm.py::TestTa::test_basic_pair PASSED              [ 48%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3877846Z tests/test_polymerase_tm.py::TestTa::test_dmso_correction PASSED         [ 49%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3885568Z tests/test_polymerase_tm.py::TestTa::test_taq_pair PASSED                [ 50%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3892851Z tests/test_polymerase_tm.py::TestReverseComplement::test_basic PASSED    [ 51%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3900321Z tests/test_polymerase_tm.py::TestReverseComplement::test_palindrome PASSED [ 52%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3907833Z tests/test_polymerase_tm.py::TestReverseComplement::test_poly_a PASSED   [ 53%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3915785Z tests/test_polymerase_tm.py::TestBatchTm::test_multiple PASSED           [ 54%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3923769Z tests/test_polymerase_tm.py::TestOptimalBindingLength::test_finds_length PASSED [ 54%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3931310Z tests/test_polymerase_tm.py::TestOptimalBindingLength::test_returns_full_if_needed PASSED [ 55%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3943724Z tests/test_polymerase_tm.py::TestCheckPair::test_compatible_pair PASSED  [ 56%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3959130Z tests/test_polymerase_tm.py::TestCheckPair::test_additive_recommendation_gc_rich PASSED [ 57%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3974119Z tests/test_polymerase_tm.py::TestCheckPair::test_additive_taq_dmso PASSED [ 58%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3986914Z tests/test_polymerase_tm.py::TestPcrProtocol::test_basic PASSED          [ 59%]
+test (3.12)	Run tests	2026-03-06T21:53:08.3999377Z tests/test_polymerase_tm.py::TestPcrProtocol::test_step_names PASSED     [ 60%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4008017Z tests/test_polymerase_tm.py::TestPrimerDimer::test_complementary_pair PASSED [ 61%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4016206Z tests/test_polymerase_tm.py::TestPrimerDimer::test_no_dimer PASSED       [ 62%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4024742Z tests/test_polymerase_tm.py::TestPrimerDimer::test_self_dimer PASSED     [ 63%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4032563Z tests/test_polymerase_tm.py::TestGibsonOverlaps::test_basic_design PASSED [ 63%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4040668Z tests/test_polymerase_tm.py::TestGibsonOverlaps::test_custom_overlap PASSED [ 64%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4058523Z tests/test_polymerase_tm.py::TestRestrictionScan::test_ecori PASSED      [ 65%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4069316Z tests/test_polymerase_tm.py::TestRestrictionScan::test_no_sites PASSED   [ 66%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4080322Z tests/test_polymerase_tm.py::TestRestrictionScan::test_multiple_sites PASSED [ 67%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4087884Z tests/test_polymerase_tm.py::TestRestrictionScan::test_custom_enzymes PASSED [ 68%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4095614Z tests/test_polymerase_tm.py::TestRestrictionScan::test_enzyme_names_list PASSED [ 69%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4103329Z tests/test_polymerase_tm.py::TestRestrictionScan::test_enzyme_names_case_insensitive PASSED [ 70%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4111531Z tests/test_polymerase_tm.py::TestRestrictionScan::test_unknown_enzyme_raises PASSED [ 71%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4126507Z tests/test_polymerase_tm.py::TestPrimerQuality::test_good_primer PASSED  [ 72%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4137778Z tests/test_polymerase_tm.py::TestPrimerQuality::test_too_short PASSED    [ 72%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4158453Z tests/test_polymerase_tm.py::TestPrimerQuality::test_gc_rich PASSED      [ 73%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4171906Z tests/test_polymerase_tm.py::TestPrimerQuality::test_homopolymer_run PASSED [ 74%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4185035Z tests/test_polymerase_tm.py::TestPrimerQuality::test_perfect_primer PASSED [ 75%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4192270Z tests/test_polymerase_tm.py::TestGcContent::test_all_gc PASSED           [ 76%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4199895Z tests/test_polymerase_tm.py::TestGcContent::test_all_at PASSED           [ 77%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4207533Z tests/test_polymerase_tm.py::TestGcContent::test_half PASSED             [ 78%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4215136Z tests/test_polymerase_tm.py::TestListPolymerases::test_returns_list PASSED [ 79%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4239020Z tests/test_polymerase_tm.py::TestCsvRoundTrip::test_write_and_read PASSED [ 80%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4246677Z tests/test_polymerase_tm.py::TestAdditiveRecommendation::test_public_import PASSED [ 81%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4254131Z tests/test_polymerase_tm.py::TestAdditiveRecommendation::test_backward_compat_alias PASSED [ 81%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4264993Z tests/test_polymerase_tm.py::TestAdditiveRecommendation::test_no_additive_needed PASSED [ 82%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4279617Z tests/test_polymerase_tm.py::TestAdditiveRecommendation::test_gc_rich_q5 PASSED [ 83%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4294575Z tests/test_polymerase_tm.py::TestAdditiveRecommendation::test_gc_rich_taq_dmso PASSED [ 84%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4302422Z tests/test_polymerase_tm.py::TestIUPACRestrictionScan::test_degenerate_n_match PASSED [ 85%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4310475Z tests/test_polymerase_tm.py::TestIUPACRestrictionScan::test_degenerate_r_y_match PASSED [ 86%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4318660Z tests/test_polymerase_tm.py::TestIUPACRestrictionScan::test_degenerate_no_false_positive PASSED [ 87%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4326514Z tests/test_polymerase_tm.py::TestIUPACRestrictionScan::test_exact_enzymes_still_fast PASSED [ 88%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4335406Z tests/test_polymerase_tm.py::TestHairpinNN::test_hairpin_returns_tm PASSED [ 89%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4345030Z tests/test_polymerase_tm.py::TestHairpinNN::test_hairpin_tm_increases_with_gc PASSED [ 90%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4353677Z tests/test_polymerase_tm.py::TestHairpinNN::test_hairpin_mismatches_field PASSED [ 90%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4361476Z tests/test_polymerase_tm.py::TestHairpinNN::test_wobble_pair_detected PASSED [ 91%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4369453Z tests/test_polymerase_tm.py::TestHairpinNN::test_primer_hairpin_wrapper PASSED [ 92%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4385453Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_auto_touchdown_large_diff PASSED [ 93%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4398069Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_no_touchdown_matched_primers PASSED [ 94%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4410617Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_force_touchdown PASSED [ 95%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4425161Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_suppress_touchdown PASSED [ 96%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4439610Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_touchdown_structure PASSED [ 97%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4454111Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_touchdown_total_cycles PASSED [ 98%]
+test (3.12)	Run tests	2026-03-06T21:53:08.4468671Z tests/test_polymerase_tm.py::TestTouchdownProtocol::test_check_pair_suggests_touchdown PASSED [ 99%]
+test (3.12)	Run tests	2026-03-06T21:53:08.5572676Z tests/test_polymerase_tm.py::TestVersion::test_version PASSED            [100%]
+test (3.12)	Run tests	2026-03-06T21:53:08.5573644Z 
+test (3.12)	Run tests	2026-03-06T21:53:08.5573914Z =================================== FAILURES ===================================
+test (3.12)	Run tests	2026-03-06T21:53:08.5574751Z _____________________________ TestTm.test_phusion ______________________________
+test (3.12)	Run tests	2026-03-06T21:53:08.5575264Z 
+test (3.12)	Run tests	2026-03-06T21:53:08.5575565Z self = <test_polymerase_tm.TestTm object at 0x7fcfde77ed80>
+test (3.12)	Run tests	2026-03-06T21:53:08.5576037Z 
+test (3.12)	Run tests	2026-03-06T21:53:08.5576216Z     def test_phusion(self):
+test (3.12)	Run tests	2026-03-06T21:53:08.5577019Z >       assert tm("ATGTCCCTGCTCTTCTCTCGATGCAA", polymerase="phusion_hf") == 68
+test (3.12)	Run tests	2026-03-06T21:53:08.5577721Z E       AssertionError: assert 74 == 68
+test (3.12)	Run tests	2026-03-06T21:53:08.5578703Z E        +  where 74 = tm('ATGTCCCTGCTCTTCTCTCGATGCAA', polymerase='phusion_hf')
+test (3.12)	Run tests	2026-03-06T21:53:08.5579168Z 
+test (3.12)	Run tests	2026-03-06T21:53:08.5579346Z tests/test_polymerase_tm.py:48: AssertionError
+test (3.12)	Run tests	2026-03-06T21:53:08.5579848Z =========================== short test summary info ============================
+test (3.12)	Run tests	2026-03-06T21:53:08.5580614Z FAILED tests/test_polymerase_tm.py::TestTm::test_phusion - AssertionError: assert 74 == 68
+test (3.12)	Run tests	2026-03-06T21:53:08.5581419Z  +  where 74 = tm('ATGTCCCTGCTCTTCTCTCGATGCAA', polymerase='phusion_hf')
+test (3.12)	Run tests	2026-03-06T21:53:08.5582079Z ======================== 1 failed, 110 passed in 2.20s =========================
+test (3.12)	Run tests	2026-03-06T21:53:08.6693570Z ##[error]Process completed with exit code 1.
+

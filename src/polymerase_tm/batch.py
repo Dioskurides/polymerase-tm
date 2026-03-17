@@ -38,6 +38,7 @@ def reverse_complement(seq: str) -> str:
 def batch_tm(
     sequences: list[str],
     polymerase: str = "q5",
+    method: Optional[str] = None,
 ) -> list[dict]:
     """Calculate Tm for multiple primer sequences at once.
 
@@ -47,22 +48,18 @@ def batch_tm(
         List of primer binding sequences.
     polymerase : str
         Polymerase key (default ``"q5"``).
+    method : str, optional
+        Force a specific Tm calculation method (e.g. "primer3").
 
     Returns
     -------
     list[dict]
         Each dict has keys: ``sequence``, ``length``, ``gc_pct``, ``tm``.
-
-    Examples
-    --------
-    >>> results = batch_tm(["ATCGATCGATCG", "GCGCGCGCGCGC"])
-    >>> for r in results:
-    ...     print(f"{r['sequence']}: Tm={r['tm']} degC")
     """
     results = []
     for seq in sequences:
         s = seq.strip().upper()
-        t = tm(s, polymerase=polymerase)
+        t = tm(s, polymerase=polymerase, method=method)
         gc = (s.count("G") + s.count("C")) / len(s) * 100
         results.append({
             "sequence": s,
@@ -78,6 +75,7 @@ def optimal_binding_length(
     target_tm: int = 72,
     polymerase: str = "q5",
     direction: str = "3prime",
+    method: Optional[str] = None,
 ) -> dict:
     """Find the shortest primer binding region that reaches a target Tm.
 
@@ -95,6 +93,8 @@ def optimal_binding_length(
     direction : str
         ``"3prime"`` (default) extends from the 3' end (standard primer
         design). ``"5prime"`` extends from the 5' end.
+    method : str, optional
+        Force a specific Tm calculation method (e.g. "primer3").
 
     Returns
     -------
@@ -116,7 +116,7 @@ def optimal_binding_length(
         else:
             subseq = seq[:length]
 
-        t = tm(subseq, polymerase=polymerase)
+        t = tm(subseq, polymerase=polymerase, method=method)
         if t >= target_tm:
             gc = (subseq.count("G") + subseq.count("C")) / len(subseq) * 100
             return {
@@ -134,7 +134,7 @@ def optimal_binding_length(
     return {
         "binding_seq": subseq,
         "length": len(subseq),
-        "tm": tm(subseq, polymerase=polymerase),
+        "tm": tm(subseq, polymerase=polymerase, method=method),
         "gc_pct": round(gc, 1),
         "target_reached": False,
         "full_sequence": seq,
@@ -243,6 +243,7 @@ def check_pair(
     rev: str,
     polymerase: str = "q5",
     dmso_pct: float = 0,
+    method: Optional[str] = None,
 ) -> dict:
     """Comprehensive primer pair compatibility check.
 
@@ -256,6 +257,8 @@ def check_pair(
         Polymerase key.
     dmso_pct : float
         DMSO percentage.
+    method : str, optional
+        Force a specific Tm calculation method (e.g. "primer3").
 
     Returns
     -------
@@ -273,7 +276,7 @@ def check_pair(
     fwd = fwd.strip().upper()
     rev = rev.strip().upper()
 
-    result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct)
+    result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct, method=method)
     diff = abs(t1 - t2)
     gc_f = (fwd.count("G") + fwd.count("C")) / len(fwd) * 100
     gc_r = (rev.count("G") + rev.count("C")) / len(rev) * 100
@@ -337,6 +340,7 @@ def pcr_protocol(
     td_cycles: int = 10,
     buffer: Optional[str] = None,
     salt_mM: Optional[int] = None,
+    method: Optional[str] = None,
 ) -> dict:
     """Generate a complete PCR cycling protocol.
 
@@ -428,7 +432,7 @@ def pcr_protocol(
 
     params = EXTENSION_RATES[family]
     result_ta, t1, t2 = ta(fwd, rev, polymerase=polymerase, dmso_pct=dmso_pct,
-                           buffer=buffer, salt_mM=salt_mM)
+                           buffer=buffer, salt_mM=salt_mM, method=method)
     tm_diff = abs(t1 - t2)
 
     # Automatically determine amplicon length if template is provided

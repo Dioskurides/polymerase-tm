@@ -210,6 +210,12 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
     parser.add_argument(
+        "--method",
+        default=None,
+        choices=["owczarzy", "schildkraut", "primer3"],
+        help="Force a specific Tm calculation method (default: auto).",
+    )
+    parser.add_argument(
         "--list",
         action="store_true",
         dest="list_poly",
@@ -336,6 +342,7 @@ def main(argv: list[str] | None = None) -> None:
                 buffer=args.buffer,
                 salt_mM=args.salt,
                 dmso_pct=args.dmso,
+                method=args.method,
                 orf_start=args.orf_start,
                 genetic_code=args.genetic_code,
                 codon_mode=args.codon_mode,
@@ -435,7 +442,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.dmso_check:
             print("\n  [WARNING] --dmso-check requires a primer pair. Ignored.\n")
         # Single primer -- just Tm
-        t = tm(seq1, polymerase=poly, buffer=args.buffer, salt_mM=args.salt)
+        t = tm(seq1, polymerase=poly, buffer=args.buffer, salt_mM=args.salt, method=args.method)
         gc = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
         print(f"\n  Primer:     {seq1}")
         print(f"  Length:     {len(seq1)} nt")
@@ -450,7 +457,7 @@ def main(argv: list[str] | None = None) -> None:
     elif len(args.primers) >= 2:
         seq2 = args.primers[1].strip().upper()
         result_ta, t1, t2 = ta(seq1, seq2, polymerase=poly, dmso_pct=args.dmso,
-                               buffer=args.buffer, salt_mM=args.salt)
+                               buffer=args.buffer, salt_mM=args.salt, method=args.method)
 
         gc1 = (seq1.count("G") + seq1.count("C")) / len(seq1) * 100
         gc2 = (seq2.count("G") + seq2.count("C")) / len(seq2) * 100
@@ -499,7 +506,7 @@ def main(argv: list[str] | None = None) -> None:
 
         protocol = pcr_protocol(seq1, seq2, polymerase=poly, dmso_pct=args.dmso,
                                 template=template_seq, buffer=args.buffer,
-                                salt_mM=args.salt)
+                                salt_mM=args.salt, method=args.method)
         amp_len = protocol.get("amplicon_length")
         
         print(f"  [PCR CYCLING PROTOCOL]")

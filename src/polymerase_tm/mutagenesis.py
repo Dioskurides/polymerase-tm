@@ -27,6 +27,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
+import primer3
 from .core import calc_nn_raw, calc_sdm_tm
 from .batch import reverse_complement
 from .constants import (
@@ -52,11 +53,13 @@ class SDMPrimer:
     direction: str      # "FWD" or "REV"
     bind_region: str     # template-binding portion only
     mutation_bases: str  # mutated bases (lowercase in full sequence)
+    risk: Optional[str] = None  # secondary structure risk warning
 
     def __repr__(self) -> str:
+        risk_str = f", RISK={self.risk}" if self.risk else ""
         return (
             f"SDMPrimer({self.direction}, {self.length} nt, "
-            f"Tm={self.tm:.0f}°C, GC={self.gc_pct:.0f}%)"
+            f"Tm={self.tm:.0f}°C, GC={self.gc_pct:.0f}%{risk_str})"
         )
 
 
@@ -96,6 +99,10 @@ class MutagenesisResult:
             lines.append(
                 f"Codon change: {self.original_codon} → {self.new_codon}"
             )
+        if self.forward.risk:
+            lines.append(f"FWD Risk: {self.forward.risk}")
+        if self.reverse.risk:
+            lines.append(f"REV Risk: {self.reverse.risk}")
         if self.warnings:
             lines.append("Warnings: " + "; ".join(self.warnings))
         return "\n".join(lines)
@@ -221,6 +228,7 @@ def _build_primer(
     mono_mM: float = Q5_SDM_MONO_MM,
     divalent_mM: float = Q5_SDM_DIVALENT_MM,
     primer_conc_nM: float = Q5_SDM_PRIMER_NM,
+    method: Optional[str] = None,
 ) -> tuple[str, float]:
     """Extend a primer from `start` in the given direction until Tm target.
 
@@ -253,7 +261,11 @@ def _build_primer(
         for end in range(start + min_len, min(start + 60, tlen) + 1):
             seq = template[start:end]
             try:
-                t = calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)
+                if method:
+                    from .core import tm
+                    t = tm(seq, salt_mM=int(mono_mM), method=method)
+                else:
+                    t = calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)
             except ValueError:
                 continue
             if t >= min_tm:
@@ -269,7 +281,11 @@ def _build_primer(
             # Could not reach min_tm — return longest possible
             seq = template[start:min(start + 60, tlen)]
             try:
-                t = calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)
+                if method:
+                    from .core import tm
+                    t = tm(seq, salt_mM=int(mono_mM), method=method)
+                else:
+                    t = calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)
             except ValueError:
                 t = 0.0
             return seq, t
@@ -285,7 +301,11 @@ def _build_primer(
             seq = template[begin:start]
             rc = reverse_complement(seq)
             try:
-                t = calc_sdm_tm(rc, mono_mM, divalent_mM, primer_conc_nM)
+                if method:
+                    from .core import tm
+                    t = tm(rc, salt_mM=int(mono_mM), method=method)
+                else:
+                    t = calc_sdm_tm(rc, mono_mM, divalent_mM, primer_conc_nM)
             except ValueError:
                 continue
             if t >= min_tm:
@@ -300,7 +320,11 @@ def _build_primer(
             seq = template[max(0, start - 60):start]
             rc = reverse_complement(seq)
             try:
-                t = calc_sdm_tm(rc, mono_mM, divalent_mM, primer_conc_nM)
+                if method:
+                    from .core import tm
+                    t = tm(rc, salt_mM=int(mono_mM), method=method)
+                else:
+                    t = calc_sdm_tm(rc, mono_mM, divalent_mM, primer_conc_nM)
             except ValueError:
                 t = 0.0
             return rc, t
@@ -316,6 +340,7 @@ def _balance_primers(
     divalent_mM: float = Q5_SDM_DIVALENT_MM,
     primer_conc_nM: float = Q5_SDM_PRIMER_NM,
     max_diff: float = 5.0,
+    method: Optional[str] = None,
 ) -> tuple[str, float, str, float]:
     """Balance Tm between FWD and REV primers by extending the shorter one.
 
@@ -335,7 +360,11 @@ def _balance_primers(
                 break
             seq = template[fwd_start:end]
             try:
-                t = calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)
+                if method:
+                    from .core import tm
+                    t = tm(seq, salt_mM=int(mono_mM), method=method)
+                else:
+                    t = calc_sdm_tm(seq, mono_mM, divalent_mM, primer_conc_nM)
             except ValueError:
                 continue
             if abs(t - rev_tm) <= max_diff or t >= rev_tm:
@@ -353,7 +382,11 @@ def _balance_primers(
                 seq = template[begin:rev_start + len(rc_orig)]
                 rc = reverse_complement(seq)
                 try:
-                    t = calc_sdm_tm(rc, mono_mM, divalent_mM, primer_conc_nM)
+                    if method:
+                        from .core import tm
+                        t = tm(rc, salt_mM=int(mono_mM), method=method)
+                    else:
+                        t = calc_sdm_tm(rc, mono_mM, divalent_mM, primer_conc_nM)
                 except ValueError:
                     continue
                 if abs(t - fwd_tm) <= max_diff or t >= fwd_tm:
@@ -419,6 +452,7 @@ class BaseChanger:
         merge_mutations: bool = False,
         codon_mode: str = "usage",
         dmso_pct: float = 0.0,
+        method: Optional[str] = None,
     ):
         # Clean and validate template
         self.template = re.sub(r"\s+", "", template).upper()
@@ -442,10 +476,26 @@ class BaseChanger:
         self.merge_mutations = merge_mutations
         self.codon_mode = codon_mode
         self.dmso_pct = dmso_pct
+        self.method = method
 
         # Build codon table for this genetic code
         self._codon_table = get_codon_table(genetic_code)
         self._aa_to_codons = get_aa_to_codons(genetic_code)
+
+    def _check_primer_risk(self, seq: str) -> Optional[str]:
+        """Check for hairpins or homodimers using Primer3."""
+        try:
+            hp = primer3.calc_hairpin(seq)
+            if hp.tm > 45:
+                # Use .tm for result objects
+                return f"Hairpin (Tm={hp.tm:.1f}°C)"
+            
+            dimer = primer3.calc_homodimer(seq)
+            if dimer.tm > 40:
+                return f"Homodimer (Tm={dimer.tm:.1f}°C)"
+        except (ImportError, Exception):
+            pass
+        return None
 
     def _codon_at(self, aa_pos: int) -> tuple[str, int]:
         """Get the codon and its 0-based template index for a 1-based AA position.
@@ -532,18 +582,28 @@ class BaseChanger:
         )
 
         # Design primers
-        fwd_primer, rev_primer = self._design_substitution_primers(
-            mutated, nt_idx, 3, new_codon
+        fwd, rev = self._design_substitution_primers(
+            mutated, nt_idx, 3, new_codon, method=self.method
         )
 
         # Ta is min(Tm_fwd, Tm_rev) + 1, capped at 72°C (matching NEB)
-        ta = min(fwd_primer.tm, rev_primer.tm) + 1
+        ta = min(fwd.tm, rev.tm) + 1
         ta = min(ta, 72)
+
+        # Check for secondary structure risks
+        fwd.risk = self._check_primer_risk(fwd.sequence)
+        rev.risk = self._check_primer_risk(rev.sequence)
+        
+        warnings = []
+        if fwd.risk:
+            warnings.append(f"Forward primer risk: {fwd.risk}")
+        if rev.risk:
+            warnings.append(f"Reverse primer risk: {rev.risk}")
 
         return MutagenesisResult(
             description=description,
-            forward=fwd_primer,
-            reverse=rev_primer,
+            forward=fwd,
+            reverse=rev,
             ta=ta,
             mutated_sequence=mutated,
             original_codon=original_codon,
@@ -591,11 +651,20 @@ class BaseChanger:
         description = f"Replace {original.lower()} with {replacement} at position {start}"
 
         fwd, rev = self._design_substitution_primers(
-            mutated, idx, len(replacement), replacement
+            mutated, idx, len(replacement), replacement, method=self.method
         )
 
         ta = min(fwd.tm, rev.tm) + 1
         ta = min(ta, 72)
+
+        # Check for secondary structure risks
+        warnings = []
+        fwd_risk = self._check_primer_risk(fwd.sequence)
+        rev_risk = self._check_primer_risk(rev.sequence)
+        if fwd_risk:
+            warnings.append(f"Forward primer risk: {fwd_risk}")
+        if rev_risk:
+            warnings.append(f"Reverse primer risk: {rev_risk}")
 
         return MutagenesisResult(
             description=description,
@@ -603,6 +672,7 @@ class BaseChanger:
             reverse=rev,
             ta=ta,
             mutated_sequence=mutated,
+            warnings=warnings,
         )
 
     def deletion(self, start: int, length: int) -> MutagenesisResult:
@@ -631,21 +701,34 @@ class BaseChanger:
         fwd_seq, fwd_tm = _build_primer(
             mutated, idx, "forward",
             min_tm=self.min_tm, max_tm=self.max_tm, min_len=self.min_length,
+            method=self.method,
         )
 
         # REV primer: ends right before deletion, extends 5'
         rev_seq, rev_tm = _build_primer(
             mutated, idx, "reverse",
             min_tm=self.min_tm, max_tm=self.max_tm, min_len=self.min_length,
+            method=self.method,
         )
 
         # Balance
         fwd_seq, fwd_tm, rev_seq, rev_tm = _balance_primers(
             fwd_seq, rev_seq, fwd_tm, rev_tm, mutated, idx, idx,
+            method=self.method,
         )
 
         ta = min(fwd_tm, rev_tm) + 1
         ta = min(ta, 72)
+
+        # Check for secondary structure risks
+        fwd_risk = self._check_primer_risk(fwd_seq)
+        rev_risk = self._check_primer_risk(rev_seq)
+        
+        warnings = []
+        if fwd_risk:
+            warnings.append(f"Forward primer risk: {fwd_risk}")
+        if rev_risk:
+            warnings.append(f"Reverse primer risk: {rev_risk}")
 
         fwd_primer = SDMPrimer(
             sequence=fwd_seq,
@@ -655,6 +738,7 @@ class BaseChanger:
             direction="FWD",
             bind_region=fwd_seq,
             mutation_bases="",
+            risk=fwd_risk,
         )
 
         rev_primer = SDMPrimer(
@@ -665,6 +749,7 @@ class BaseChanger:
             direction="REV",
             bind_region=rev_seq,
             mutation_bases="",
+            risk=rev_risk,
         )
 
         return MutagenesisResult(
@@ -673,6 +758,7 @@ class BaseChanger:
             reverse=rev_primer,
             ta=ta,
             mutated_sequence=mutated,
+            warnings=warnings,
         )
 
     def insertion(self, position: int, insert_seq: str) -> MutagenesisResult:
@@ -703,6 +789,7 @@ class BaseChanger:
         fwd_anneal, fwd_anneal_tm = _build_primer(
             mutated, anneal_start, "forward",
             min_tm=self.min_tm, max_tm=self.max_tm, min_len=self.min_length,
+            method=self.method,
         )
 
         # Full FWD = insertion flap + annealing
@@ -712,10 +799,21 @@ class BaseChanger:
         rev_seq, rev_tm = _build_primer(
             mutated, idx, "reverse",
             min_tm=self.min_tm, max_tm=self.max_tm, min_len=self.min_length,
+            method=self.method,
         )
 
         ta = min(fwd_anneal_tm, rev_tm) + 1
         ta = min(ta, 72)
+
+        # Check for secondary structure risks
+        fwd_risk = self._check_primer_risk(fwd_full)
+        rev_risk = self._check_primer_risk(rev_seq)
+        
+        warnings = []
+        if fwd_risk:
+            warnings.append(f"Forward primer risk: {fwd_risk}")
+        if rev_risk:
+            warnings.append(f"Reverse primer risk: {rev_risk}")
 
         fwd_primer = SDMPrimer(
             sequence=fwd_full,
@@ -725,6 +823,7 @@ class BaseChanger:
             direction="FWD",
             bind_region=fwd_anneal,
             mutation_bases=insert_seq.lower(),
+            risk=fwd_risk,
         )
 
         rev_primer = SDMPrimer(
@@ -735,6 +834,7 @@ class BaseChanger:
             direction="REV",
             bind_region=rev_seq,
             mutation_bases="",
+            risk=rev_risk,
         )
 
         return MutagenesisResult(
@@ -743,6 +843,7 @@ class BaseChanger:
             reverse=rev_primer,
             ta=ta,
             mutated_sequence=mutated,
+            warnings=warnings,
         )
 
     def batch(self, mutations: str) -> list[MutagenesisResult]:
@@ -767,6 +868,7 @@ class BaseChanger:
         mut_start: int,
         mut_len: int,
         mut_bases: str,
+        method: Optional[str] = None,
     ) -> tuple[SDMPrimer, SDMPrimer]:
         """Design primers for a substitution (codon change or nt substitution).
 
@@ -782,7 +884,7 @@ class BaseChanger:
 
         if self.confine_to_tails or mut_len > 6:
             return self._design_tail_primers(
-                mutated_template, mut_start, mut_len, mut_bases
+                mutated_template, mut_start, mut_len, mut_bases, method=method
             )
 
         # For circular templates, double the sequence so primers can
@@ -813,7 +915,11 @@ class BaseChanger:
             # Tm is computed on right-side only (mutation + right flank)
             right_region = circ[circ_mut_start:end]
             try:
-                t = calc_sdm_tm(right_region)
+                if method:
+                    from .core import tm
+                    t = tm(right_region, salt_mM=int(Q5_SDM_MONO_MM), method=method)
+                else:
+                    t = calc_sdm_tm(right_region)
             except ValueError:
                 continue
             if t >= self.min_tm:
@@ -828,7 +934,11 @@ class BaseChanger:
             fwd_right_anneal = circ[left_start:min(right_end + 40, tlen)]
             right_region = circ[circ_mut_start:left_start + len(fwd_right_anneal)]
             try:
-                fwd_tm_val = calc_sdm_tm(right_region) if right_region else 0.0
+                if method:
+                    from .core import tm
+                    fwd_tm_val = tm(right_region, salt_mM=int(Q5_SDM_MONO_MM), method=method) if right_region else 0.0
+                else:
+                    fwd_tm_val = calc_sdm_tm(right_region) if right_region else 0.0
             except ValueError:
                 fwd_tm_val = 0.0
 
@@ -846,6 +956,7 @@ class BaseChanger:
                 circ, left_start, "reverse",
                 min_tm=self.min_tm, max_tm=self.max_tm,
                 min_len=self.min_length,
+                method=self.method,
             )
         else:
             # Linear mode: not enough room upstream — REV binds downstream
@@ -854,6 +965,7 @@ class BaseChanger:
                 circ, fwd_end_pos, "forward",
                 min_tm=self.min_tm, max_tm=self.max_tm,
                 min_len=self.min_length,
+                method=self.method,
             )
             rev_seq = reverse_complement(rev_seq)
             try:
@@ -889,6 +1001,7 @@ class BaseChanger:
         mut_start: int,
         mut_len: int,
         mut_bases: str,
+        method: Optional[str] = None,
     ) -> tuple[SDMPrimer, SDMPrimer]:
         """Design primers with mutation as 5' non-annealing tails.
 
@@ -906,6 +1019,7 @@ class BaseChanger:
         fwd_anneal, fwd_tm = _build_primer(
             mutated_template, fwd_anneal_start, "forward",
             min_tm=self.min_tm, max_tm=self.max_tm, min_len=self.min_length,
+            method=self.method,
         )
 
         # REV annealing: ends before the mutation region, extends 5'
@@ -913,6 +1027,7 @@ class BaseChanger:
         rev_anneal, rev_tm = _build_primer(
             mutated_template, rev_anneal_end, "reverse",
             min_tm=self.min_tm, max_tm=self.max_tm, min_len=self.min_length,
+            method=self.method,
         )
 
         # Full primer sequences = tail + annealing

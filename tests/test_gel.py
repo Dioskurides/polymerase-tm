@@ -4,6 +4,8 @@ import os
 import tempfile
 
 import pytest
+import matplotlib
+matplotlib.use('Agg')
 
 try:
     from polymerase_tm.gel import plot_virtual_gel, _HAS_VIZ
